@@ -1,6 +1,6 @@
 /* Chmode Log — offline-first work-session logger.
    Data lives on the phone (IndexedDB) and syncs to a private GitHub repo when online. */
-const APP_VERSION = "1.0.0";
+const APP_VERSION = "1.0.1";
 const D = window.ChmodeData;
 const DEFAULT_TYPES = ["Writing", "Technical", "Meeting", "Admin"];
 const $ = id => document.getElementById(id);
@@ -268,8 +268,8 @@ function renderStats() {
   sessions.forEach(s => { const k = mondayOf(new Date(s.startTs)).getTime(); const b = weeks.find(x => x.st === k); if (b) b.list.push(s); });
   weeks.forEach(x => x.h = sum(x.list.map(s => s.mins)) / 60);
   const maxH = Math.max(5, ...weeks.map(x => x.h)), top = Math.ceil(maxH / 5) * 5;
-  const W = 320, H = 130, L = 26, B = 18, T = 12, bw = (W - L) / 8; let g = "";
-  [0, top / 2, top].forEach(v => { const y = H - B - (v / top) * (H - B - T); g += `<line x1="${L}" x2="${W}" y1="${y}" y2="${y}" stroke="var(--grid)" stroke-width="1"/><text x="${L - 6}" y="${y + 3}" text-anchor="end">${v}</text>`; });
+  const W = 320, H = 130, L = 30, B = 18, T = 12, bw = (W - L) / 8; let g = "";
+  [0, top / 2, top].forEach(v => { const lab = Number.isInteger(v) ? v : v.toFixed(1); const y = H - B - (v / top) * (H - B - T); g += `<line x1="${L}" x2="${W}" y1="${y}" y2="${y}" stroke="var(--grid)" stroke-width="1"/><text x="${L - 6}" y="${y + 3}" text-anchor="end">${lab}</text>`; });
   weeks.forEach((x, i) => {
     const bh = (x.h / top) * (H - B - T), xx = L + i * bw + bw * .18, ww = bw * .64, last = i === 7;
     g += `<rect x="${xx}" y="${H - B - bh}" width="${ww}" height="${bh}" rx="3" fill="${scaleRGB(x.h / maxH)}" stroke="var(--fg)" stroke-opacity="${last ? .6 : 0}"/>`;
@@ -286,7 +286,7 @@ function renderStats() {
   });
   const m = sessions.filter(s => s.startTs >= now - 30 * 864e5), tb = $("typeBody"); tb.innerHTML = "";
   const all = [...types()]; m.forEach(s => { if (!all.includes(s.type)) all.push(s.type); });
-  const rows = all.map(t => { const a = m.filter(s => s.type === t); return { t, a, h: sum(a.map(s => s.mins)) / 60 }; }), maxT = Math.max(1, ...rows.map(r => r.h));
+  const rows = all.map(t => { const a = m.filter(s => s.type === t); return { t, a, h: sum(a.map(s => s.mins)) / 60 }; }).filter(r => r.a.length).sort((x, y) => y.h - x.h), maxT = Math.max(1, ...rows.map(r => r.h));
   rows.forEach(r => {
     const q = mean(r.a.map(s => s.quality)), e = mean(r.a.map(s => s.exhaustion)), tr = document.createElement("tr");
     tr.append(td(r.t), td(r.h.toFixed(1), "m n", r.a.length ? r.h / maxT : null), td(r.a.length, "m n"), td(f1(q), "m c", q == null ? null : (q - 1) / 4), td(f1(e), "m c", e == null ? null : (5 - e) / 4));
