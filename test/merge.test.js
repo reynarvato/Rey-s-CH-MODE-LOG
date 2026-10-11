@@ -61,4 +61,9 @@ t("semicolon-delimited CSV (European Excel)", () => {
   const r = D.importRows(D.parseCSV("Date;Start;End\n2026-10-10;08:00;09:30\n"), 1);
   assert.strictEqual(r.sessions[0].mins, 90);
 });
+t("stats prefs sync, newer wins", () => {
+  const m = D.merge({ prefs: { statsExcluded: ["Lunch"], updatedAt: 5 } }, { prefs: { statsExcluded: [], updatedAt: 2 } });
+  assert.deepStrictEqual(m.prefs.statsExcluded, ["Lunch"]);
+  assert.deepStrictEqual(D.toRemote(m).prefs.statsExcluded, ["Lunch"]);
+});
 console.log(n + " tests passed");

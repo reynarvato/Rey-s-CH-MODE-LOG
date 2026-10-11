@@ -8,7 +8,7 @@
      isn't undone by the other device's older copy. */
   function merge(local, remote) {
     local = local || {}; remote = remote || {};
-    const out = { version: 1, sessions: {}, types: null, active: null };
+    const out = { version: 1, sessions: {}, types: null, active: null, prefs: null };
     const ls = local.sessions || {}, rs = toMap(remote.sessions);
     const ids = new Set([...Object.keys(ls), ...Object.keys(rs)]);
     ids.forEach(id => {
@@ -17,6 +17,7 @@
     });
     out.types = newer(local.types, remote.types);
     out.active = newer(local.active, remote.active);
+    out.prefs = newer(local.prefs, remote.prefs);
     return out;
   }
   function newer(a, b) { if (!a) return b || null; if (!b) return a; return (b.updatedAt || 0) > (a.updatedAt || 0) ? b : a; }
@@ -28,7 +29,7 @@
   /* The shape written to the repo: sessions as an array sorted oldest first, so diffs read like a log. */
   function toRemote(doc) {
     const sessions = Object.values(doc.sessions || {}).sort((a, b) => (a.startTs || 0) - (b.startTs || 0) || (a.id < b.id ? -1 : 1));
-    return { version: 1, types: doc.types || null, active: doc.active || null, sessions };
+    return { version: 1, types: doc.types || null, active: doc.active || null, prefs: doc.prefs || null, sessions };
   }
   function sameData(a, b) { return JSON.stringify(toRemote(a)) === JSON.stringify(toRemote(b)); }
 

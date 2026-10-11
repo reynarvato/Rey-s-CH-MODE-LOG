@@ -120,6 +120,23 @@ svg text{fill:var(--muted);font-family:var(--mono);font-size:10px}
 .legend i{display:inline-block;width:80px;height:10px;border-radius:3px;background:linear-gradient(90deg,#F8696B,#FFEB84,#63BE7B)}
 .steps{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:6px;font-size:.9rem}
 .steps code,.small code{font-family:var(--mono);font-size:.82rem;background:var(--bg);padding:1px 4px;border-radius:4px}
+.sheetwrap.tall{max-height:62vh;overflow:auto}
+.sheetwrap.tall th{position:sticky;top:0;z-index:2}
+.sheetwrap.tall th:first-child{z-index:3}
+.sheet tr.today td:first-child{font-weight:600}
+.chip.check{display:inline-flex;align-items:center;gap:6px;min-height:34px;font-size:.84rem;padding:0 11px}
+.chip.check i{width:10px;height:10px;border-radius:3px;display:inline-block;flex:none}
+.chip.check[aria-pressed="false"]{opacity:.5;text-decoration:line-through}
+.daynav{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.navbtn{min-width:44px;min-height:40px;padding:0;font-size:1.2rem}
+.navbtn:disabled{opacity:.3}
+.clockwrap{display:flex;justify-content:center}
+.clockwrap svg{width:100%;max-width:330px;height:auto}
+.clockwrap.small svg{max-width:220px}
+.clocklegend{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:.8rem;color:var(--muted)}
+.clocklegend span{display:inline-flex;align-items:center;gap:6px}
+.clocklegend i{width:10px;height:10px;border-radius:3px;display:inline-block}
+.clocklegend b{font-family:var(--mono);font-weight:500;color:var(--fg)}
 .toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--fg);color:var(--bg);padding:10px 16px;border-radius:999px;font-size:.9rem;max-width:calc(100% - 32px);z-index:5}
 .banner{position:fixed;left:16px;right:16px;bottom:calc(16px + env(safe-area-inset-bottom,0px));max-width:528px;margin:0 auto;background:var(--accent);color:var(--accent-ink);border:0;border-radius:12px;padding:14px 16px;font-weight:600;z-index:6;text-align:left}
 .lightbox{position:fixed;inset:0;background:rgba(0,0,0,.85);display:flex;align-items:center;justify-content:center;padding:16px;z-index:10}
@@ -242,26 +259,48 @@ svg text{fill:var(--muted);font-family:var(--mono);font-size:10px}
 
     <section class="card">
       <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap">
-        <span class="lbl">Sessions · tap a row to edit</span>
+        <span class="lbl" id="sheetTitle">Today and yesterday · tap a row to edit</span>
         <span class="legend"><span>worse</span><i></i><span>better</span></span>
       </div>
       <p id="listEmpty" class="empty">No sessions yet. Tap Start session, or Just finished to log something you've already done.</p>
       <div class="sheetwrap" id="sheetWrap" hidden>
         <table class="sheet">
-          <thead><tr><th>Date</th><th>Start</th><th>End</th><th>Hrs</th><th>Q</th><th>E</th><th>Notes</th><th>Type</th></tr></thead>
+          <thead><tr><th>Date</th><th>Start</th><th>Type</th><th>End</th><th>Duration</th><th>Q</th><th>E</th><th>Notes</th></tr></thead>
           <tbody id="sheetBody"></tbody>
         </table>
       </div>
-      <div class="foot"><button class="ghost" id="btnMore" type="button" hidden>Show more rows</button></div>
+      <div class="foot">
+        <button class="ghost" id="btnAll" type="button">Show all sessions</button>
+        <span class="empty small" id="rowCount"></span>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="subhead"><span class="lbl">Today on the clock</span><button class="link" id="btnClockStats" type="button">Open in Stats</button></div>
+      <div class="clockwrap small" id="clockMini"></div>
     </section>
   </div>
 
   <!-- ============ STATS ============ -->
   <div id="pageStats" class="page" hidden>
     <section class="card">
+      <div class="subhead"><span class="lbl">Count these types</span><span class="foot" style="gap:12px"><button class="link" id="btnTypesAll" type="button">All</button><button class="link" id="btnTypesNone" type="button">None</button></span></div>
+      <div class="chips" id="statTypes"></div>
+      <p class="empty small" id="statTypesNote" style="margin:0"></p>
+    </section>
+    <section class="card">
+      <div class="daynav">
+        <button class="ghost navbtn" id="dayPrev" type="button" aria-label="Previous day">‹</button>
+        <span class="lbl" id="dayLabel">Today</span>
+        <button class="ghost navbtn" id="dayNext" type="button" aria-label="Next day">›</button>
+      </div>
+      <div class="clockwrap" id="clockBig"></div>
+      <div class="clocklegend" id="clockLegend"></div>
+    </section>
+    <section class="card">
       <span class="lbl">Last 7 days</span>
       <div class="stats">
-        <div class="stat" id="tHours"><b id="sHours">–</b><span>hours worked</span></div>
+        <div class="stat" id="tHours"><b id="sHours">–</b><span>hours (selected types)</span></div>
         <div class="stat" id="tQual"><b id="sQual">–</b><span>avg quality</span></div>
         <div class="stat" id="tExh"><b id="sExh">–</b><span>avg exhaustion</span></div>
       </div>

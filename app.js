@@ -1,6 +1,6 @@
 /* Chmode Log — offline-first work-session logger.
    Data lives on the phone (IndexedDB) and syncs to a private GitHub repo when online. */
-const APP_VERSION = "1.0.1";
+const APP_VERSION = "1.1.0";
 const D = window.ChmodeData;
 const DEFAULT_TYPES = ["Writing", "Technical", "Meeting", "Admin"];
 const $ = id => document.getElementById(id);
@@ -48,7 +48,7 @@ const imgPut = rec => tx("images", "readwrite", s => s.put(rec));
 const imgAll = () => tx("images", "readonly", s => s.getAll());
 
 /* ---------------- state ---------------- */
-let doc = { version: 1, sessions: {}, types: { list: [...DEFAULT_TYPES], updatedAt: 0 }, active: null };
+let doc = { version: 1, sessions: {}, types: { list: [...DEFAULT_TYPES], updatedAt: 0 }, active: null, prefs: null };
 let sessions = [], shown = 50, startType = null, form = { mode: null }, uploading = 0, storageOk = true;
 function rebuild() { sessions = Object.values(doc.sessions).filter(s => s && !s.deleted && s.startTs).sort((a, b) => b.startTs - a.startTs); }
 const types = () => (doc.types && doc.types.list && doc.types.list.length) ? doc.types.list : DEFAULT_TYPES;
@@ -58,6 +58,7 @@ async function persist() {
   try { await kvSet("doc", doc); storageOk = true; } catch (e) { storageOk = false; toast("Couldn't save on this phone. Free some space and try again."); }
   scheduleSync();
   renderSyncPill();
+  try { renderClocks(); } catch (e) { }
 }
 let askedPersist = false;
 function askPersist() { if (askedPersist) return; askedPersist = true; try { navigator.storage && navigator.storage.persist && navigator.storage.persist(); } catch (e) { } }
@@ -238,34 +239,76 @@ $("btnDelete").onclick = () => { $("delConfirm").hidden = false; };
 $("btnDelYes").onclick = () => { doc.sessions[form.id] = { id: form.id, deleted: true, updatedAt: Date.now() }; form = { mode: null }; persist(); renderAll(); toast("Session deleted"); };
 
 /* ---------------- sheet ---------------- */
+const fmtHM = m => Math.floor(m / 60) + ":" + pad(Math.round(m % 60));
+let showAll = false;
+function dayLabel(ts) {
+  const d = new Date(ts), t = new Date(); t.setHours(0, 0, 0, 0); const y = new Date(t); y.setDate(y.getDate() - 1);
+  if (d >= t) return "Today"; if (d >= y) return "Yesterday";
+  return d.toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" });
+}
 function td(text, cls, t) { const c = document.createElement("td"); if (cls) c.className = cls; c.textContent = text; if (t !== undefined && t !== null) paint(c, t); return c; }
 function renderList() {
   const body = $("sheetBody"); body.innerHTML = "";
-  $("listEmpty").hidden = !!sessions.length; $("sheetWrap").hidden = !sessions.length; $("btnMore").hidden = sessions.length <= shown;
-  if (!sessions.length) return;
-  const rows = sessions.slice(0, shown), maxM = Math.max(240, ...rows.map(s => s.mins));
+  const y0 = new Date(); y0.setHours(0, 0, 0, 0); y0.setDate(y0.getDate() - 1);
+  const rows = (showAll ? sessions : sessions.filter(s => s.startTs >= y0.getTime())).slice().reverse(); /* oldest first */
+  $("sheetTitle").textContent = (showAll ? "All sessions" : "Today and yesterday") + " · tap a row to edit";
+  $("btnAll").textContent = showAll ? "Show today and yesterday" : "Show all sessions";
+  $("btnAll").hidden = !sessions.length;
+  $("rowCount").textContent = sessions.length ? (showAll ? sessions.length + " sessions" : rows.length + " of " + sessions.length) : "";
+  $("listEmpty").textContent = sessions.length ? "Nothing logged today or yesterday yet." : "No sessions yet. Tap Start session, or Just finished to log something you've already done.";
+  $("listEmpty").hidden = !!rows.length; $("sheetWrap").hidden = !rows.length;
+  $("sheetWrap").classList.toggle("tall", showAll);
+  if (!rows.length) return;
+  const maxM = Math.max(240, ...rows.map(s => s.mins)), frag = document.createDocumentFragment();
   rows.forEach(s => {
-    const tr = document.createElement("tr");
-    tr.append(td(new Date(s.startTs).toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" }), "m"), td(s.start, "m"), td(s.end, "m"),
-      td(fmtH(s.mins), "m n", s.mins / maxM), td(has(s.quality) ? s.quality : "–", "m c", tQ(s.quality)), td(has(s.exhaustion) ? s.exhaustion : "–", "m c", tE(s.exhaustion)));
+    const tr = document.createElement("tr"), lab = dayLabel(s.startTs);
+    if (lab === "Today") tr.className = "today";
+    tr.append(td(lab, "m"), td(s.start, "m"), td(s.type, "t"), td(s.end, "m"),
+      td(fmtHM(s.mins), "m n", s.mins / maxM), td(has(s.quality) ? s.quality : "–", "m c", tQ(s.quality)), td(has(s.exhaustion) ? s.exhaustion : "–", "m c", tE(s.exhaustion)));
     const n = document.createElement("td"); n.className = "note"; const nd = document.createElement("div"); nd.textContent = s.notes || ""; n.appendChild(nd);
     const ni = (s.images || []).length, nl = (s.links || []).length;
     if (ni || nl) { const a = document.createElement("div"); a.className = "att"; a.textContent = [ni ? ni + " photo" + (ni > 1 ? "s" : "") : "", nl ? nl + " link" + (nl > 1 ? "s" : "") : ""].filter(Boolean).join(" · "); n.appendChild(a); }
-    tr.append(n, td(s.type, "t")); tr.onclick = () => openForm("edit", s); body.appendChild(tr);
+    tr.append(n); tr.onclick = () => openForm("edit", s); frag.appendChild(tr);
   });
+  body.appendChild(frag);
+  if (showAll) requestAnimationFrame(() => { const w = $("sheetWrap"); w.scrollTop = w.scrollHeight; });
 }
-$("btnMore").onclick = () => { shown += 50; renderList(); };
+$("btnAll").onclick = () => { showAll = !showAll; renderList(); };
+
+/* ---------------- stats: type filter ---------------- */
+const sum = a => a.reduce((x, y) => x + y, 0), mean = a => { a = a.filter(has); return a.length ? sum(a) / a.length : null; }, f1 = v => v == null ? "–" : v.toFixed(1);
+const PALETTE = ["#4C6EF5", "#9C36B5", "#1098AD", "#F08C00", "#D6336C", "#5F3DC4", "#0B7285", "#A0522D", "#3B5BDB", "#C2255C", "#7048E8", "#E8590C"];
+function allTypes() { /* every type that exists: the list first, then others by how often they're used */
+  const cnt = {}; sessions.forEach(s => { cnt[s.type] = (cnt[s.type] || 0) + 1; });
+  return [...types(), ...Object.keys(cnt).filter(t => !types().includes(t)).sort((a, b) => cnt[b] - cnt[a])];
+}
+function typeColor(t) { const i = allTypes().indexOf(t); return PALETTE[(i < 0 ? 0 : i) % PALETTE.length]; }
+const excluded = () => (doc.prefs && doc.prefs.statsExcluded) || [];
+const counted = s => !excluded().includes(s.type);
+function setExcluded(list) { doc.prefs = { ...(doc.prefs || {}), statsExcluded: list, updatedAt: Date.now() }; persist(); renderStats(); renderClocks(); }
+function renderTypeFilter() {
+  const el = $("statTypes"); el.innerHTML = ""; const ex = excluded();
+  allTypes().forEach(t => {
+    const b = document.createElement("button"); b.type = "button"; b.className = "chip check"; b.setAttribute("aria-pressed", String(!ex.includes(t)));
+    const i = document.createElement("i"); i.style.background = typeColor(t); b.append(i, document.createTextNode(t));
+    b.onclick = () => setExcluded(ex.includes(t) ? ex.filter(x => x !== t) : [...ex, t]); el.appendChild(b);
+  });
+  const n = allTypes().length - allTypes().filter(t => ex.includes(t)).length;
+  $("statTypesNote").textContent = ex.length ? "Counting " + n + " of " + allTypes().length + " types. Tap a type to include or leave it out." : "Counting every type. Tap a type to leave it out, e.g. socials or lunch.";
+}
+$("btnTypesAll").onclick = () => setExcluded([]);
+$("btnTypesNone").onclick = () => setExcluded(allTypes());
 
 /* ---------------- stats ---------------- */
-const sum = a => a.reduce((x, y) => x + y, 0), mean = a => { a = a.filter(has); return a.length ? sum(a) / a.length : null; }, f1 = v => v == null ? "–" : v.toFixed(1);
 function renderStats() {
-  const now = Date.now(), w = sessions.filter(s => s.startTs >= now - 7 * 864e5);
+  renderTypeFilter();
+  const now = Date.now(), cs = sessions.filter(counted), w = cs.filter(s => s.startTs >= now - 7 * 864e5);
   const h7 = sum(w.map(s => s.mins)) / 60, q7 = mean(w.map(s => s.quality)), e7 = mean(w.map(s => s.exhaustion));
   $("sHours").textContent = h7.toFixed(1); $("sQual").textContent = f1(q7); $("sExh").textContent = f1(e7);
   paint($("tHours"), w.length ? h7 / 30 : null); paint($("tQual"), q7 == null ? null : (q7 - 1) / 4); paint($("tExh"), e7 == null ? null : (5 - e7) / 4);
   const thisMon = mondayOf(new Date()).getTime(), weeks = [];
   for (let i = 7; i >= 0; i--) { const d = new Date(thisMon); d.setDate(d.getDate() - i * 7); weeks.push({ st: d.getTime(), list: [] }); }
-  sessions.forEach(s => { const k = mondayOf(new Date(s.startTs)).getTime(); const b = weeks.find(x => x.st === k); if (b) b.list.push(s); });
+  cs.forEach(s => { const k = mondayOf(new Date(s.startTs)).getTime(); const b = weeks.find(x => x.st === k); if (b) b.list.push(s); });
   weeks.forEach(x => x.h = sum(x.list.map(s => s.mins)) / 60);
   const maxH = Math.max(5, ...weeks.map(x => x.h)), top = Math.ceil(maxH / 5) * 5;
   const W = 320, H = 130, L = 30, B = 18, T = 12, bw = (W - L) / 8; let g = "";
@@ -284,15 +327,67 @@ function renderStats() {
       td(x.list.length, "m n"), td(f1(q), "m c", q == null ? null : (q - 1) / 4), td(f1(e), "m c", e == null ? null : (5 - e) / 4));
     wb.appendChild(tr);
   });
-  const m = sessions.filter(s => s.startTs >= now - 30 * 864e5), tb = $("typeBody"); tb.innerHTML = "";
-  const all = [...types()]; m.forEach(s => { if (!all.includes(s.type)) all.push(s.type); });
-  const rows = all.map(t => { const a = m.filter(s => s.type === t); return { t, a, h: sum(a.map(s => s.mins)) / 60 }; }).filter(r => r.a.length).sort((x, y) => y.h - x.h), maxT = Math.max(1, ...rows.map(r => r.h));
+  const m = cs.filter(s => s.startTs >= now - 30 * 864e5), tb = $("typeBody"); tb.innerHTML = "";
+  const rows = allTypes().filter(t => !excluded().includes(t)).map(t => { const a = m.filter(s => s.type === t); return { t, a, h: sum(a.map(s => s.mins)) / 60 }; }).filter(r => r.a.length).sort((x, y) => y.h - x.h), maxT = Math.max(1, ...rows.map(r => r.h));
   rows.forEach(r => {
     const q = mean(r.a.map(s => s.quality)), e = mean(r.a.map(s => s.exhaustion)), tr = document.createElement("tr");
     tr.append(td(r.t), td(r.h.toFixed(1), "m n", r.a.length ? r.h / maxT : null), td(r.a.length, "m n"), td(f1(q), "m c", q == null ? null : (q - 1) / 4), td(f1(e), "m c", e == null ? null : (5 - e) / 4));
     tb.appendChild(tr);
   });
+  renderClocks();
 }
+
+/* ---------------- 24-hour day clock ---------------- */
+let clockDay = 0; /* 0 = today, 1 = yesterday, … */
+function dayStart(offset) { const d = new Date(); d.setHours(0, 0, 0, 0); d.setDate(d.getDate() - offset); return d.getTime(); }
+function daySegments(offset) {
+  const a = dayStart(offset), b = dayStart(offset - 1), segs = [];
+  const list = sessions.map(s => ({ type: s.type, s: s.startTs, e: s.endTs || s.startTs + s.mins * 60000 }));
+  if (isActive()) list.push({ type: doc.active.type, s: doc.active.startTs, e: Date.now(), live: true });
+  list.forEach(x => { const s = Math.max(x.s, a), e = Math.min(x.e, b); if (e > s) segs.push({ ...x, s, e, mins: (e - s) / 60000, counted: !excluded().includes(x.type) }); });
+  return { a, b, segs: segs.sort((x, y) => x.s - y.s) };
+}
+function clockSVG(offset, size) {
+  const { a, segs } = daySegments(offset), C = 100, R = 78, sw = size === "small" ? 16 : 14;
+  const ang = ts => ((ts - a) / 864e5) * 360, pt = (deg, r) => { const t = (deg - 90) * Math.PI / 180; return [C + r * Math.cos(t), C + r * Math.sin(t)]; };
+  const arc = (d1, d2, r) => { if (d2 - d1 >= 359.99) d2 = d1 + 359.99; const [x1, y1] = pt(d1, r), [x2, y2] = pt(d2, r); return `M${x1.toFixed(2)} ${y1.toFixed(2)}A${r} ${r} 0 ${d2 - d1 > 180 ? 1 : 0} 1 ${x2.toFixed(2)} ${y2.toFixed(2)}`; };
+  let g = `<circle cx="${C}" cy="${C}" r="${R}" fill="none" stroke="var(--grid)" stroke-width="${sw}"/>`;
+  for (let h = 0; h < 24; h++) { const major = h % 6 === 0, [x1, y1] = pt(h * 15, R + sw / 2 + 2), [x2, y2] = pt(h * 15, R + sw / 2 + (major ? 7 : 4)); g += `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="var(--muted)" stroke-width="${major ? 1.4 : .7}" stroke-opacity="${major ? .9 : .5}"/>`; }
+  if (size !== "small") [[0, "00"], [6, "06"], [12, "12"], [18, "18"]].forEach(([h, l]) => { const [x, y] = pt(h * 15, R - sw / 2 - 9); g += `<text x="${x}" y="${y + 3.5}" text-anchor="middle" font-size="9">${l}</text>`; });
+  segs.forEach(x => {
+    const col = x.counted ? typeColor(x.type) : "var(--muted)";
+    g += `<path d="${arc(ang(x.s), Math.max(ang(x.e), ang(x.s) + .6), R)}" fill="none" stroke="${col}" stroke-width="${sw}" stroke-opacity="${x.counted ? 1 : .35}"${x.live ? ' stroke-dasharray="3 2"' : ""}><title>${x.type} ${hm(new Date(x.s))}–${hm(new Date(x.e))}</title></path>`;
+  });
+  if (offset === 0) { const d = ang(Date.now()), [x1, y1] = pt(d, R - sw / 2 - 12), [x2, y2] = pt(d, R + sw / 2 + 3); g += `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="var(--fg)" stroke-width="1.6" stroke-linecap="round"/><circle cx="${x2}" cy="${y2}" r="2.6" fill="var(--fg)"/>`; }
+  const work = sum(segs.filter(x => x.counted).map(x => x.mins)), other = sum(segs.filter(x => !x.counted).map(x => x.mins));
+  const span = offset === 0 ? (Date.now() - a) / 60000 : 1440, free = Math.max(0, span - work - other);
+  const big = size !== "small";
+  g += `<text x="${C}" y="${C - (big ? 8 : 2)}" text-anchor="middle" font-size="${big ? 22 : 22}" style="fill:var(--fg);font-weight:500">${fmtHM(work)}</text>`;
+  g += `<text x="${C}" y="${C + (big ? 7 : 13)}" text-anchor="middle" font-size="8">counted</text>`;
+  if (big) {
+    g += `<text x="${C}" y="${C + 22}" text-anchor="middle" font-size="8">${fmtHM(free)} free${offset === 0 ? " so far" : ""}</text>`;
+    if (other) g += `<text x="${C}" y="${C + 33}" text-anchor="middle" font-size="8">${fmtHM(other)} other</text>`;
+  }
+  return { svg: `<svg viewBox="-6 -6 212 212" role="img" aria-label="24-hour clock: ${fmtHM(work)} counted, ${fmtHM(free)} free">${g}</svg>`, segs, work, other, free };
+}
+function renderClocks() {
+  const big = clockSVG(clockDay, "big"); $("clockBig").innerHTML = big.svg;
+  $("clockMini").innerHTML = clockSVG(0, "small").svg;
+  $("dayLabel").textContent = clockDay === 0 ? "Today" : clockDay === 1 ? "Yesterday" : new Date(dayStart(clockDay)).toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "short" });
+  $("dayNext").disabled = clockDay === 0;
+  const by = {}; big.segs.forEach(x => { by[x.type] = (by[x.type] || 0) + x.mins; });
+  const lg = $("clockLegend"); lg.innerHTML = "";
+  Object.keys(by).sort((p, q) => by[q] - by[p]).forEach(t => {
+    const sp = document.createElement("span"), i = document.createElement("i"), b = document.createElement("b"), on = !excluded().includes(t);
+    i.style.background = on ? typeColor(t) : "var(--muted)"; if (!on) i.style.opacity = ".35";
+    b.textContent = fmtHM(by[t]); sp.append(i, document.createTextNode(t + " "), b); lg.appendChild(sp);
+  });
+  if (!big.segs.length) lg.textContent = "Nothing logged on this day.";
+}
+$("dayPrev").onclick = () => { clockDay++; renderClocks(); };
+$("dayNext").onclick = () => { if (clockDay > 0) clockDay--; renderClocks(); };
+$("btnClockStats").onclick = () => { clockDay = 0; setTab("stats"); renderClocks(); };
+setInterval(() => { if (document.visibilityState === "visible") renderClocks(); }, 60000);
 function renderAll() { rebuild(); renderMode(); renderList(); renderStats(); renderSyncPill(); }
 
 /* ---------------- GitHub sync ---------------- */
