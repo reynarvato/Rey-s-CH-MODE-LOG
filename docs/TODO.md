@@ -22,5 +22,8 @@ Added 10 Oct 2026.
 
 Done in v1.1.0 (11 Oct 2026).
 
+## Recomp
+- [x] **Recomp tab** (v1.2.0, 11 Oct 2026): 12-week experiment from `Recomp_Session_Tracker.xlsx`. One week per screen: workout ticks (✓/✗), weekly actions (4 tick themselves from the daily log), 7-day daily log, summary, all-weeks table and weight vs target chart. Syncs to `data/recomp/daily_log.csv` for analyse.py.
+
 ## Planned
 - [ ] Spend tab (receipt logging) — see `receipts-spec.md`

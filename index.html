@@ -38,7 +38,7 @@ h1{font-family:var(--display);font-weight:700;font-size:1.5rem;letter-spacing:-.
 .syncpill{font-family:var(--mono);font-size:.72rem;color:var(--muted);background:none;border:0;padding:0;text-align:left}
 .syncpill.warn{color:var(--bad)}
 .tabs{display:flex;background:var(--card);border:1px solid var(--line);border-radius:10px;padding:3px;gap:3px}
-.tabs button{border:0;background:none;padding:8px 13px;border-radius:7px;font-weight:600;font-size:.9rem;color:var(--muted)}
+.tabs button{border:0;background:none;padding:8px 10px;border-radius:7px;font-weight:600;font-size:.9rem;color:var(--muted)}
 .tabs button[aria-selected="true"]{background:var(--accent);color:var(--accent-ink)}
 .lbl{font-size:.72rem;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);font-weight:600}
 .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px;display:flex;flex-direction:column;gap:14px;min-width:0}
@@ -137,6 +137,24 @@ svg text{fill:var(--muted);font-family:var(--mono);font-size:10px}
 .clocklegend span{display:inline-flex;align-items:center;gap:6px}
 .clocklegend i{width:10px;height:10px;border-radius:3px;display:inline-block}
 .clocklegend b{font-family:var(--mono);font-weight:500;color:var(--fg)}
+.rsessions{display:flex;flex-direction:column;gap:12px}
+.rsess{display:flex;flex-direction:column;gap:6px}
+.rsess-h{display:flex;justify-content:space-between;font-weight:600;font-size:.9rem}
+.rcount{font-family:var(--mono);font-size:.8rem;color:var(--muted);font-weight:400}
+.tick{min-height:36px;border:1px solid var(--line);border-radius:8px;background:var(--bg);font-size:.84rem;padding:0 10px;color:var(--fg)}
+.tick.yes{background:color-mix(in srgb,#63BE7B var(--mix),var(--card));border-color:transparent;font-weight:600}
+.tick.no{background:color-mix(in srgb,#F8696B var(--mix),var(--card));border-color:transparent;text-decoration:line-through}
+.tick.auto{border-style:dashed;border-color:var(--muted)}
+.tick.na{opacity:.4}
+.rsum{grid-template-columns:repeat(4,1fr);gap:8px}
+.rsum .stat b{font-size:1.15rem}
+.rdaily td{padding:3px}
+.rdaily td.m{padding:8px}
+.rdaily input.cell,.rdaily select.cell{width:auto;padding:7px 4px;min-height:36px;background:transparent;border:1px solid transparent;border-radius:6px}
+.rdaily input.cell:focus,.rdaily select.cell:focus{border-color:var(--accent);background:var(--card)}
+.cell{font:inherit;font-family:var(--mono);font-size:.85rem;color:var(--fg);background:transparent;border:1px solid transparent;border-radius:6px;padding:7px 5px;min-height:36px;-webkit-appearance:none;appearance:none}
+.cell:focus{border-color:var(--accent);background:var(--card);outline:none}
+select.cell{padding-right:4px;cursor:pointer}
 .toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--fg);color:var(--bg);padding:10px 16px;border-radius:999px;font-size:.9rem;max-width:calc(100% - 32px);z-index:5}
 .banner{position:fixed;left:16px;right:16px;bottom:calc(16px + env(safe-area-inset-bottom,0px));max-width:528px;margin:0 auto;background:var(--accent);color:var(--accent-ink);border:0;border-radius:12px;padding:14px 16px;font-weight:600;z-index:6;text-align:left}
 .lightbox{position:fixed;inset:0;background:rgba(0,0,0,.85);display:flex;align-items:center;justify-content:center;padding:16px;z-index:10}
@@ -153,6 +171,7 @@ svg text{fill:var(--muted);font-family:var(--mono);font-size:10px}
     <div class="tabs" role="tablist">
       <button role="tab" id="tabLog" aria-selected="true">Log</button>
       <button role="tab" id="tabStats" aria-selected="false">Stats</button>
+      <button role="tab" id="tabRecomp" aria-selected="false">Recomp</button>
       <button role="tab" id="tabSync" aria-selected="false">Sync</button>
     </div>
   </header>
@@ -328,6 +347,55 @@ svg text{fill:var(--muted);font-family:var(--mono);font-size:10px}
     </section>
   </div>
 
+  <!-- ============ RECOMP ============ -->
+  <div id="pageRecomp" class="page" hidden>
+    <section class="card">
+      <div class="daynav">
+        <button class="ghost navbtn" id="rPrev" type="button" aria-label="Previous week">‹</button>
+        <div style="text-align:center"><div class="lbl" id="rWeekLabel">Week 1</div><div class="empty small" id="rWeekDates"></div></div>
+        <button class="ghost navbtn" id="rNext" type="button" aria-label="Next week">›</button>
+      </div>
+      <div class="stats rsum">
+        <div class="stat" id="rsSessionsT"><b id="rsSessions">0/4</b><span>sessions</span></div>
+        <div class="stat" id="rsTrainingT"><b id="rsTraining">0%</b><span>training</span></div>
+        <div class="stat" id="rsActionsT"><b id="rsActions">0%</b><span>actions</span></div>
+        <div class="stat" id="rsWeightT"><b id="rsWeight">–</b><span id="rsTarget">target</span></div>
+      </div>
+    </section>
+    <section class="card">
+      <div class="subhead"><span class="lbl">Workouts · tap: ✓ done → ✗ skipped → clear</span></div>
+      <div id="rSessions" class="rsessions"></div>
+    </section>
+    <section class="card">
+      <span class="lbl">Weekly actions</span>
+      <div class="chips" id="rActions"></div>
+      <p class="empty small" style="margin:0">Weighed, food, protein and steps tick themselves from the daily log below. Tap any to set it by hand.</p>
+    </section>
+    <section class="card">
+      <span class="lbl">Daily log</span>
+      <div class="sheetwrap">
+        <table class="sheet rdaily">
+          <thead><tr><th>Day</th><th>kg</th><th>kcal</th><th>Protein</th><th>Steps</th><th>Sleep</th><th>7-day</th><th>Session</th><th>BJJ</th><th>Tier</th><th>Notes</th></tr></thead>
+          <tbody id="rDaily"></tbody>
+        </table>
+      </div>
+      <label class="field"><span class="lbl">Week notes</span><textarea id="rNotes" placeholder="How the week went, anything that changed" style="min-height:70px"></textarea></label>
+    </section>
+    <section class="card">
+      <span class="lbl">All weeks</span>
+      <div class="sheetwrap">
+        <table class="sheet">
+          <thead><tr><th>Week</th><th>Sess</th><th>Train</th><th>Actions</th><th>Target</th><th>Actual</th></tr></thead>
+          <tbody id="rOverview"></tbody>
+        </table>
+      </div>
+      <p class="empty small" id="rTotal" style="margin:0"></p>
+      <svg id="rChart" viewBox="0 0 320 120" width="100%" role="img" aria-label="7-day mean weight against target"></svg>
+      <p class="empty small" id="rChartNote" style="margin:0"></p>
+      <div class="foot"><button class="ghost" id="rCsv" type="button">Export daily_log.csv</button></div>
+    </section>
+  </div>
+
   <!-- ============ SYNC ============ -->
   <div id="pageSync" class="page" hidden>
     <section class="card">
@@ -375,5 +443,6 @@ svg text{fill:var(--muted);font-family:var(--mono);font-size:10px}
 <div class="lightbox" id="lightbox" hidden><img id="lightImg" alt=""></div>
 <script src="merge.js"></script>
 <script src="app.js"></script>
+<script src="recomp.js"></script>
 </body>
 </html>

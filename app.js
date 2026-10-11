@@ -1,6 +1,6 @@
 /* Chmode Log — offline-first work-session logger.
    Data lives on the phone (IndexedDB) and syncs to a private GitHub repo when online. */
-const APP_VERSION = "1.1.0";
+const APP_VERSION = "1.2.0";
 const D = window.ChmodeData;
 const DEFAULT_TYPES = ["Writing", "Technical", "Meeting", "Admin"];
 const $ = id => document.getElementById(id);
@@ -65,14 +65,15 @@ function askPersist() { if (askedPersist) return; askedPersist = true; try { nav
 
 /* ---------------- tabs ---------------- */
 function setTab(t) {
-  ["log", "stats", "sync"].forEach(n => {
+  ["log", "stats", "recomp", "sync"].forEach(n => {
     const on = n === t; $("tab" + n[0].toUpperCase() + n.slice(1)).setAttribute("aria-selected", String(on));
     $("page" + n[0].toUpperCase() + n.slice(1)).hidden = !on;
   });
   if (t === "sync") renderSyncPage();
+  if (t === "recomp" && typeof renderRecomp === "function") renderRecomp();
   ls.set("chmodeTab", t === "sync" ? "log" : t);
 }
-$("tabLog").onclick = () => setTab("log"); $("tabStats").onclick = () => setTab("stats"); $("tabSync").onclick = () => setTab("sync");
+$("tabLog").onclick = () => setTab("log"); $("tabStats").onclick = () => setTab("stats"); $("tabSync").onclick = () => setTab("sync"); $("tabRecomp").onclick = () => setTab("recomp");
 $("syncPill").onclick = () => setTab("sync");
 
 /* ---------------- types ---------------- */
@@ -388,7 +389,7 @@ $("dayPrev").onclick = () => { clockDay++; renderClocks(); };
 $("dayNext").onclick = () => { if (clockDay > 0) clockDay--; renderClocks(); };
 $("btnClockStats").onclick = () => { clockDay = 0; setTab("stats"); renderClocks(); };
 setInterval(() => { if (document.visibilityState === "visible") renderClocks(); }, 60000);
-function renderAll() { rebuild(); renderMode(); renderList(); renderStats(); renderSyncPill(); }
+function renderAll() { rebuild(); renderMode(); renderList(); renderStats(); renderSyncPill(); if (!$("pageRecomp").hidden && typeof renderRecomp === "function" && !(document.activeElement && document.activeElement.classList.contains("cell"))) renderRecomp(); }
 
 /* ---------------- GitHub sync ---------------- */
 const cfg = () => { try { const c = JSON.parse(ls.get("chmodeCfg") || "null"); return c && c.repo && c.token ? c : null; } catch (e) { return null; } };
@@ -462,6 +463,10 @@ async function sync() {
         await ghPut("data/log.json", b64utf8(JSON.stringify(D.toRemote(doc), null, 1)), remote && remote.sha, "Update log (" + sessions.length + " sessions)");
         const csv = await gh("data/log.csv", { allow404: true });
         await ghPut("data/log.csv", b64utf8(D.toCSV(doc)), csv && csv.sha, "Update CSV");
+        if (typeof recompHasData === "function" && recompHasData()) {
+          const dl = await gh("data/recomp/daily_log.csv", { allow404: true });
+          await ghPut("data/recomp/daily_log.csv", b64utf8(recompDailyCSV()), dl && dl.sha, "Update recomp daily log");
+        }
         break;
       } catch (e) { if (!(e instanceof GhError && (e.status === 409 || e.status === 422)) || attempt === 2) throw e; }
     }
@@ -550,7 +555,7 @@ $("btnCheckUpdate").onclick = async () => {
   try { const saved = await kvGet("doc"); if (saved && saved.sessions) doc = saved; }
   catch (e) { storageOk = false; toast("This browser won't let the app save. Open it from your home screen, not a private tab."); }
   if (!doc.types) doc.types = { list: [...DEFAULT_TYPES], updatedAt: 0 };
-  setTab(ls.get("chmodeTab") === "stats" ? "stats" : "log");
+  { const t = ls.get("chmodeTab"); setTab(t === "stats" || t === "recomp" ? t : "log"); }
   renderAll(); renderTypes();
   scheduleSync(800);
 })();

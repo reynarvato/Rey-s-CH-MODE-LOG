@@ -18,8 +18,11 @@
     out.types = newer(local.types, remote.types);
     out.active = newer(local.active, remote.active);
     out.prefs = newer(local.prefs, remote.prefs);
+    out.recompWeeks = mergeMap(local.recompWeeks, remote.recompWeeks);
+    out.recompDays = mergeMap(local.recompDays, remote.recompDays);
     return out;
   }
+  function mergeMap(a, b) { a = a || {}; b = b || {}; const o = {}; new Set([...Object.keys(a), ...Object.keys(b)]).forEach(k => { o[k] = newer(a[k], b[k]); }); return o; }
   function newer(a, b) { if (!a) return b || null; if (!b) return a; return (b.updatedAt || 0) > (a.updatedAt || 0) ? b : a; }
   function toMap(s) {
     if (!s) return {};
@@ -29,8 +32,9 @@
   /* The shape written to the repo: sessions as an array sorted oldest first, so diffs read like a log. */
   function toRemote(doc) {
     const sessions = Object.values(doc.sessions || {}).sort((a, b) => (a.startTs || 0) - (b.startTs || 0) || (a.id < b.id ? -1 : 1));
-    return { version: 1, types: doc.types || null, active: doc.active || null, prefs: doc.prefs || null, sessions };
+    return { version: 1, types: doc.types || null, active: doc.active || null, prefs: doc.prefs || null, recompWeeks: sortKeys(doc.recompWeeks), recompDays: sortKeys(doc.recompDays), sessions };
   }
+  function sortKeys(m) { const o = {}; Object.keys(m || {}).sort((x, y) => x.localeCompare(y, undefined, { numeric: true })).forEach(k => { o[k] = m[k]; }); return o; }
   function sameData(a, b) { return JSON.stringify(toRemote(a)) === JSON.stringify(toRemote(b)); }
 
   /* ---- CSV ---- */

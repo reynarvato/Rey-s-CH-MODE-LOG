@@ -66,4 +66,11 @@ t("stats prefs sync, newer wins", () => {
   assert.deepStrictEqual(m.prefs.statsExcluded, ["Lunch"]);
   assert.deepStrictEqual(D.toRemote(m).prefs.statsExcluded, ["Lunch"]);
 });
+t("recomp days and weeks merge per record", () => {
+  const m = D.merge({ recompDays: { "2026-10-12": { weight: 83.9, updatedAt: 9 } }, recompWeeks: { "1": { ticks: { "S1|Squat": "✓" }, updatedAt: 1 } } },
+    { recompDays: { "2026-10-12": { weight: 84.5, updatedAt: 2 }, "2026-10-13": { weight: 83.7, updatedAt: 3 } }, recompWeeks: { "1": { ticks: {}, updatedAt: 5 } } });
+  assert.strictEqual(m.recompDays["2026-10-12"].weight, 83.9); assert.strictEqual(m.recompDays["2026-10-13"].weight, 83.7);
+  assert.deepStrictEqual(m.recompWeeks["1"].ticks, {});
+  assert.ok(D.sameData(m, D.toRemote(m)));
+});
 console.log(n + " tests passed");
