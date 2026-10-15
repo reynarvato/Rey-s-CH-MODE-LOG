@@ -73,4 +73,25 @@ t("recomp days and weeks merge per record", () => {
   assert.deepStrictEqual(m.recompWeeks["1"].ticks, {});
   assert.ok(D.sameData(m, D.toRemote(m)));
 });
+t("jobs merge per record, roles newer wins, delete sticks", () => {
+  const m = D.merge({ jobs: { a: { id: "a", title: "A", applied: "2026-10-15", updatedAt: 9 }, b: { id: "b", deleted: true, updatedAt: 8 } }, jobRoles: { list: ["ML"], updatedAt: 1 } },
+    { jobs: { a: { id: "a", title: "A", updatedAt: 3 }, b: { id: "b", title: "B", updatedAt: 2 }, c: { id: "c", title: "C", updatedAt: 4 } }, jobRoles: { list: ["ML", "Robotics"], updatedAt: 5 } });
+  assert.strictEqual(m.jobs.a.applied, "2026-10-15"); assert.ok(m.jobs.b.deleted); assert.strictEqual(m.jobs.c.title, "C");
+  assert.deepStrictEqual(m.jobRoles.list, ["ML", "Robotics"]);
+  assert.ok(D.sameData(m, D.toRemote(m)));
+});
+t("job stage: saved → applied → ongoing → closed", () => {
+  assert.strictEqual(D.jobStage({}), "saved");
+  assert.strictEqual(D.jobStage({ applied: "2026-10-15" }), "applied");
+  assert.strictEqual(D.jobStage({ applied: "2026-10-15", interview: "2026-10-20" }), "ongoing");
+  assert.strictEqual(D.jobStage({ applied: "2026-10-15", outcome: "offer" }), "ongoing");
+  assert.strictEqual(D.jobStage({ applied: "2026-10-15", outcome: "rejected" }), "closed");
+  assert.strictEqual(D.jobStage({ interview: "2026-10-20", outcome: "accepted" }), "closed");
+  assert.strictEqual(D.jobStage({ deleted: true }), null);
+});
+t("jobs CSV skips deleted and escapes notes", () => {
+  const rows = D.parseCSV(D.jobsCSV({ jobs: { a: { id: "a", title: "ML, Acme", role: "ML", url: "https://x.y", applied: "2026-10-15", notes: 'said "maybe"', createdAt: 1, updatedAt: 1 }, b: { id: "b", deleted: true, updatedAt: 2 } } }));
+  assert.strictEqual(rows.length, 2); assert.deepStrictEqual(rows[0], D.JOBS_HEADER);
+  assert.strictEqual(rows[1][1], "ML, Acme"); assert.strictEqual(rows[1][4], "applied"); assert.strictEqual(rows[1][9], 'said "maybe"');
+});
 console.log(n + " tests passed");

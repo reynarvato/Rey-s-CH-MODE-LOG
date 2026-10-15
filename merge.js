@@ -20,6 +20,8 @@
     out.prefs = newer(local.prefs, remote.prefs);
     out.recompWeeks = mergeMap(local.recompWeeks, remote.recompWeeks);
     out.recompDays = mergeMap(local.recompDays, remote.recompDays);
+    out.jobs = mergeMap(local.jobs, remote.jobs);
+    out.jobRoles = newer(local.jobRoles, remote.jobRoles);
     return out;
   }
   function mergeMap(a, b) { a = a || {}; b = b || {}; const o = {}; new Set([...Object.keys(a), ...Object.keys(b)]).forEach(k => { o[k] = newer(a[k], b[k]); }); return o; }
@@ -32,7 +34,7 @@
   /* The shape written to the repo: sessions as an array sorted oldest first, so diffs read like a log. */
   function toRemote(doc) {
     const sessions = Object.values(doc.sessions || {}).sort((a, b) => (a.startTs || 0) - (b.startTs || 0) || (a.id < b.id ? -1 : 1));
-    return { version: 1, types: doc.types || null, active: doc.active || null, prefs: doc.prefs || null, recompWeeks: sortKeys(doc.recompWeeks), recompDays: sortKeys(doc.recompDays), sessions };
+    return { version: 1, types: doc.types || null, active: doc.active || null, prefs: doc.prefs || null, recompWeeks: sortKeys(doc.recompWeeks), recompDays: sortKeys(doc.recompDays), jobRoles: doc.jobRoles || null, jobs: sortKeys(doc.jobs), sessions };
   }
   function sortKeys(m) { const o = {}; Object.keys(m || {}).sort((x, y) => x.localeCompare(y, undefined, { numeric: true })).forEach(k => { o[k] = m[k]; }); return o; }
   function sameData(a, b) { return JSON.stringify(toRemote(a)) === JSON.stringify(toRemote(b)); }
@@ -116,6 +118,27 @@
     return { sessions: out, skipped };
   }
 
-  const api = { merge, toRemote, sameData, toCSV, parseCSV, importRows, normDate, normTime, spanMins, tsOf, isScore, CSV_HEADER };
+  /* ---- jobs ----
+     A job moves Saved (not applied) → Applied (waiting) → Ongoing (reached an interview, i.e. past the
+     auto-reject, or holding an offer) → Closed (rejected, accepted or withdrawn). */
+  const CLOSED = ["rejected", "accepted", "withdrawn"];
+  function jobStage(j) {
+    if (!j || j.deleted) return null;
+    if (CLOSED.includes(j.outcome)) return "closed";
+    if (j.interview || j.outcome === "offer") return "ongoing";
+    if (j.applied) return "applied";
+    return "saved";
+  }
+  const JOBS_HEADER = ["Added", "Title", "Role", "Link", "Stage", "Applied", "Interview", "Outcome", "Outcome date", "Notes"];
+  function jobsCSV(doc) {
+    const rows = [JOBS_HEADER];
+    Object.values(doc.jobs || {}).filter(j => j && !j.deleted).sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0)).forEach(j => {
+      const d = j.createdAt ? new Date(j.createdAt) : null;
+      rows.push([d ? d.getFullYear() + "-" + pad(d.getMonth() + 1) + "-" + pad(d.getDate()) : "", j.title || "", j.role || "", j.url || "", jobStage(j), j.applied || "", j.interview || "", j.outcome || "", j.outcomeDate || "", j.notes || ""]);
+    });
+    return "\ufeff" + rows.map(r => r.map(csvCell).join(",")).join("\r\n");
+  }
+
+  const api = { jobStage, jobsCSV, JOBS_HEADER, merge, toRemote, sameData, toCSV, parseCSV, importRows, normDate, normTime, spanMins, tsOf, isScore, CSV_HEADER };
   if (typeof module !== "undefined" && module.exports) module.exports = api; else root.ChmodeData = api;
 })(typeof self !== "undefined" ? self : this);

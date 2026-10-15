@@ -1,6 +1,6 @@
 /* Chmode Log — offline-first work-session logger.
    Data lives on the phone (IndexedDB) and syncs to a private GitHub repo when online. */
-const APP_VERSION = "1.2.0";
+const APP_VERSION = "1.3.0";
 const D = window.ChmodeData;
 const DEFAULT_TYPES = ["Writing", "Technical", "Meeting", "Admin"];
 const $ = id => document.getElementById(id);
@@ -65,15 +65,16 @@ function askPersist() { if (askedPersist) return; askedPersist = true; try { nav
 
 /* ---------------- tabs ---------------- */
 function setTab(t) {
-  ["log", "stats", "recomp", "sync"].forEach(n => {
+  ["log", "stats", "recomp", "jobs", "sync"].forEach(n => {
     const on = n === t; $("tab" + n[0].toUpperCase() + n.slice(1)).setAttribute("aria-selected", String(on));
     $("page" + n[0].toUpperCase() + n.slice(1)).hidden = !on;
   });
   if (t === "sync") renderSyncPage();
   if (t === "recomp" && typeof renderRecomp === "function") renderRecomp();
+  if (t === "jobs" && typeof renderJobs === "function") renderJobs();
   ls.set("chmodeTab", t === "sync" ? "log" : t);
 }
-$("tabLog").onclick = () => setTab("log"); $("tabStats").onclick = () => setTab("stats"); $("tabSync").onclick = () => setTab("sync"); $("tabRecomp").onclick = () => setTab("recomp");
+$("tabLog").onclick = () => setTab("log"); $("tabStats").onclick = () => setTab("stats"); $("tabSync").onclick = () => setTab("sync"); $("tabRecomp").onclick = () => setTab("recomp"); $("tabJobs").onclick = () => setTab("jobs");
 $("syncPill").onclick = () => setTab("sync");
 
 /* ---------------- types ---------------- */
@@ -389,7 +390,7 @@ $("dayPrev").onclick = () => { clockDay++; renderClocks(); };
 $("dayNext").onclick = () => { if (clockDay > 0) clockDay--; renderClocks(); };
 $("btnClockStats").onclick = () => { clockDay = 0; setTab("stats"); renderClocks(); };
 setInterval(() => { if (document.visibilityState === "visible") renderClocks(); }, 60000);
-function renderAll() { rebuild(); renderMode(); renderList(); renderStats(); renderSyncPill(); if (!$("pageRecomp").hidden && typeof renderRecomp === "function" && !(document.activeElement && document.activeElement.classList.contains("cell"))) renderRecomp(); }
+function renderAll() { rebuild(); renderMode(); renderList(); renderStats(); renderSyncPill(); if (!$("pageRecomp").hidden && typeof renderRecomp === "function" && !(document.activeElement && document.activeElement.classList.contains("cell"))) renderRecomp(); if (!$("pageJobs").hidden && typeof renderJobs === "function") renderJobs(); }
 
 /* ---------------- GitHub sync ---------------- */
 const cfg = () => { try { const c = JSON.parse(ls.get("chmodeCfg") || "null"); return c && c.repo && c.token ? c : null; } catch (e) { return null; } };
@@ -418,7 +419,7 @@ async function ghPut(path, b64, sha, message) {
 
 let syncing = false, syncAgain = false, syncTimer = null, lastErr = null;
 function scheduleSync(ms = 1500) { clearTimeout(syncTimer); syncTimer = setTimeout(sync, ms); }
-function pendingCount() { const t = +(ls.get("chmodeLastPush") || 0); return Object.values(doc.sessions).filter(s => (s.updatedAt || 0) > t).length; }
+function pendingCount() { const t = +(ls.get("chmodeLastPush") || 0); return [...Object.values(doc.sessions), ...Object.values(doc.jobs || {})].filter(s => s && (s.updatedAt || 0) > t).length; }
 function renderSyncPill() {
   const p = $("syncPill"), c = cfg(), n = pendingCount(), last = +(ls.get("chmodeLastSync") || 0);
   p.classList.toggle("warn", !!lastErr && !!c);
@@ -467,10 +468,14 @@ async function sync() {
           const dl = await gh("data/recomp/daily_log.csv", { allow404: true });
           await ghPut("data/recomp/daily_log.csv", b64utf8(recompDailyCSV()), dl && dl.sha, "Update recomp daily log");
         }
+        if (typeof jobsHaveData === "function" && jobsHaveData()) {
+          const jc = await gh("data/jobs.csv", { allow404: true });
+          await ghPut("data/jobs.csv", b64utf8(D.jobsCSV(doc)), jc && jc.sha, "Update jobs CSV");
+        }
         break;
       } catch (e) { if (!(e instanceof GhError && (e.status === 409 || e.status === 422)) || attempt === 2) throw e; }
     }
-    const newest = Object.values(doc.sessions).reduce((m, s) => Math.max(m, (s && s.updatedAt) || 0), 0);
+    const newest = [...Object.values(doc.sessions), ...Object.values(doc.jobs || {})].reduce((m, s) => Math.max(m, (s && s.updatedAt) || 0), 0);
     ls.set("chmodeLastSync", String(Date.now())); ls.set("chmodeLastPush", String(Math.max(started, newest))); lastErr = null;
     renderAll(); return { ok: true };
   } catch (e) {
@@ -555,7 +560,7 @@ $("btnCheckUpdate").onclick = async () => {
   try { const saved = await kvGet("doc"); if (saved && saved.sessions) doc = saved; }
   catch (e) { storageOk = false; toast("This browser won't let the app save. Open it from your home screen, not a private tab."); }
   if (!doc.types) doc.types = { list: [...DEFAULT_TYPES], updatedAt: 0 };
-  { const t = ls.get("chmodeTab"); setTab(t === "stats" || t === "recomp" ? t : "log"); }
+  { const t = ls.get("chmodeTab"); setTab(t === "stats" || t === "recomp" || t === "jobs" ? t : "log"); }
   renderAll(); renderTypes();
   scheduleSync(800);
 })();

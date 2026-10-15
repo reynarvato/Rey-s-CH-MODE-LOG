@@ -25,5 +25,8 @@ Done in v1.1.0 (11 Oct 2026).
 ## Recomp
 - [x] **Recomp tab** (v1.2.0, 11 Oct 2026): 12-week experiment from `Recomp_Session_Tracker.xlsx`. One week per screen: workout ticks (✓/✗), weekly actions (4 tick themselves from the daily log), 7-day daily log, summary, all-weeks table and weight vs target chart. Syncs to `data/recomp/daily_log.csv` for analyse.py.
 
+## Jobs
+- [x] **Jobs tab** (v1.3.0, 15 Oct 2026): save postings found on the phone (link, title, role tag — addable like session types), tick Applied / Interview, set the outcome, notes. Grouped Ongoing (past the auto-reject) → Applied → Saved (not applied yet) → Closed. Syncs to `data/jobs.csv`.
+
 ## Planned
 - [ ] Spend tab (receipt logging) — see `receipts-spec.md`

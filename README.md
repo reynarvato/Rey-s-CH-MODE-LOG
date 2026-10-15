@@ -35,6 +35,8 @@ Edit the files, then **bump the version** in both `app.js` (`APP_VERSION`) and `
 Files:
 - `index.html` — markup and styles
 - `app.js` — app logic, storage (IndexedDB) and GitHub sync
+- `recomp.js` — Recomp tab (12-week experiment)
+- `jobs.js` — Jobs tab (job-hunt tracker)
 - `merge.js` — pure helpers: merging two logs, CSV export/import (unit-tested in `test/`)
 - `sw.js` — offline cache and update handling
 - `widget/chmode-widget.js` — Scriptable widget
@@ -55,5 +57,7 @@ Run the tests with `node test/merge.test.js`.
       "startTs": 1760083200000, "endTs": 1760088600000,
       "images": [{ "id": "…", "ext": "jpg" }], "links": ["https://…"], "updatedAt": 1760088700000 } ] }
 ```
+
+Jobs live in the same file as `"jobRoles": { "list": […], "updatedAt": … }` and `"jobs": { "<id>": { "id", "url", "title", "role", "applied": "YYYY-MM-DD"|null, "interview": "YYYY-MM-DD"|null, "outcome": ""|"offer"|"accepted"|"rejected"|"withdrawn", "outcomeDate", "notes", "createdAt", "updatedAt" } }`, plus a `data/jobs.csv` copy for Excel. Stage is worked out from those fields: Saved (not applied) → Applied → Ongoing (reached an interview, or holding an offer) → Closed (rejected, accepted or withdrawn).
 
 `quality` / `exhaustion` are 1–5 or `null` (skipped). Deleted sessions remain as `{ "id", "deleted": true, "updatedAt" }` so a delete on one device sticks.

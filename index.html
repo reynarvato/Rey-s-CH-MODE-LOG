@@ -155,6 +155,14 @@ svg text{fill:var(--muted);font-family:var(--mono);font-size:10px}
 .cell{font:inherit;font-family:var(--mono);font-size:.85rem;color:var(--fg);background:transparent;border:1px solid transparent;border-radius:6px;padding:7px 5px;min-height:36px;-webkit-appearance:none;appearance:none}
 .cell:focus{border-color:var(--accent);background:var(--card);outline:none}
 select.cell{padding-right:4px;cursor:pointer}
+.jsum{grid-template-columns:repeat(3,1fr)}
+.sheet.jobs td{vertical-align:top}
+.sheet.jobs td.job{white-space:normal;min-width:120px;max-width:150px}
+.sheet.jobs .jrole{font-size:.74rem;color:var(--muted);margin-top:2px}
+.sheet.jobs .jt{font-weight:600;overflow-wrap:anywhere}
+.sheet.jobs td.job a{display:block;font-size:.76rem;color:var(--accent);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:140px}
+.sheet.jobs .jsub{font-family:var(--mono);font-size:.7rem;color:var(--muted);margin-top:3px}
+.sheet.jobs .tick{min-height:32px;font-family:var(--mono);font-size:.76rem;white-space:nowrap;padding:0 7px}
 .toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--fg);color:var(--bg);padding:10px 16px;border-radius:999px;font-size:.9rem;max-width:calc(100% - 32px);z-index:5}
 .banner{position:fixed;left:16px;right:16px;bottom:calc(16px + env(safe-area-inset-bottom,0px));max-width:528px;margin:0 auto;background:var(--accent);color:var(--accent-ink);border:0;border-radius:12px;padding:14px 16px;font-weight:600;z-index:6;text-align:left}
 .lightbox{position:fixed;inset:0;background:rgba(0,0,0,.85);display:flex;align-items:center;justify-content:center;padding:16px;z-index:10}
@@ -172,6 +180,7 @@ select.cell{padding-right:4px;cursor:pointer}
       <button role="tab" id="tabLog" aria-selected="true">Log</button>
       <button role="tab" id="tabStats" aria-selected="false">Stats</button>
       <button role="tab" id="tabRecomp" aria-selected="false">Recomp</button>
+      <button role="tab" id="tabJobs" aria-selected="false">Jobs</button>
       <button role="tab" id="tabSync" aria-selected="false">Sync</button>
     </div>
   </header>
@@ -396,6 +405,53 @@ select.cell{padding-right:4px;cursor:pointer}
     </section>
   </div>
 
+  <!-- ============ JOBS ============ -->
+  <div id="pageJobs" class="page" hidden>
+    <button class="big" id="jOpen" type="button">Add a job</button>
+    <section class="card" id="jForm" hidden>
+      <span class="lbl" id="jFormTitle">Add a job</span>
+      <p class="empty small" id="jHint" style="margin:0">Found one on your phone? Save it here and apply from the laptop, not in a rush.</p>
+      <label class="field"><span class="lbl">Link</span><input type="url" id="jUrl" placeholder="Paste the job link" inputmode="url" autocapitalize="off" autocorrect="off" spellcheck="false"></label>
+      <label class="field"><span class="lbl">Title</span><input type="text" id="jTitle" placeholder="e.g. Robotics Engineer · Company" maxlength="120"></label>
+      <div class="sub">
+        <div class="subhead"><span class="lbl">Role</span><button class="link" id="btnRoles" type="button">Edit roles</button></div>
+        <div class="chips" id="jRoleChips"></div>
+        <div id="rolesEdit" hidden>
+          <div id="roleRows"></div>
+          <div class="addrow" style="margin-top:8px">
+            <input type="text" id="newRole" placeholder="New role, e.g. Controls Engineer" maxlength="40">
+            <button class="ghost" id="btnAddRole" type="button">Add</button>
+          </div>
+          <p class="empty small" style="margin-top:8px">Removing a role keeps it on past jobs.</p>
+        </div>
+      </div>
+      <div class="sub">
+        <span class="lbl">Progress · tap to tick (dated today)</span>
+        <div class="chips" id="jChecks"></div>
+      </div>
+      <div class="sub">
+        <span class="lbl">Outcome</span>
+        <div class="chips" id="jOutcome"></div>
+      </div>
+      <label class="field"><span class="lbl">Notes</span><textarea id="jNotes" placeholder="Why it fits, who to contact, interview prep, feedback…" style="min-height:80px"></textarea></label>
+      <p class="err" id="jErr" hidden></p>
+      <button class="big" id="jSave" type="button">Save for later</button>
+      <div class="confirm">
+        <button class="link" id="jCancel" type="button">Back</button>
+        <button class="link" id="jDelete" type="button" hidden style="color:var(--bad)">Delete job</button>
+        <span id="jDelConfirm" hidden><button class="ghost danger" id="jDelYes" type="button">Yes, delete</button></span>
+      </div>
+    </section>
+    <section class="card">
+      <div class="stats jsum">
+        <div class="stat"><b id="jsWeek">0</b><span>applied, last 7 days</span></div>
+        <div class="stat"><b id="jsOpen">0</b><span>live applications</span></div>
+        <div class="stat" id="jsRateT"><b id="jsRate">–</b><span>reach interview</span></div>
+      </div>
+    </section>
+    <div id="jGroups" class="page"></div>
+  </div>
+
   <!-- ============ SYNC ============ -->
   <div id="pageSync" class="page" hidden>
     <section class="card">
@@ -444,5 +500,6 @@ select.cell{padding-right:4px;cursor:pointer}
 <script src="merge.js"></script>
 <script src="app.js"></script>
 <script src="recomp.js"></script>
+<script src="jobs.js"></script>
 </body>
 </html>
