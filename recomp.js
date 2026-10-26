@@ -2,10 +2,12 @@
    One week on screen at a time: tick exercises and weekly actions, log the 7 days, see the summary.
    Data: doc.recompWeeks["1".."12"] and doc.recompDays["YYYY-MM-DD"], each record merged by updatedAt. */
 const P = (sets, lo, hi, kg, inc, o = {}) => ({ sets, lo, hi, kg, inc, ...o });
+/* Rep ranges: M = mid-rep lifts 6–10, H = high-rep lifts 10–16. Starting kg = Rey's working weights from the Setgraph export (11–25 Oct). */
+const M = (sets, kg, inc, o) => P(sets, 6, 10, kg, inc, o), H = (sets, kg, inc, o) => P(sets, 10, 16, kg, inc, o);
 const LOWER1 = { id: "S2", name: "S2 · Lower", ex: ["Squat", "Romanian Deadlift", "Leg Curl", "Leg Extension", "Calf Raise"],
-  rx: { "Squat": P(3, 8, 8, null, 5), "Romanian Deadlift": P(3, 8, 8, null, 5), "Leg Curl": P(3, 12, 12, null, 2.5), "Leg Extension": P(2, 15, 15, null, 2.5), "Calf Raise": P(3, 15, 15, null, 5) } };
+  rx: { "Squat": M(3, 51.3, 5), "Romanian Deadlift": M(3, 60, 5), "Leg Curl": H(3, 39, 2.5), "Leg Extension": H(2, 59, 2.5), "Calf Raise": H(3, 130, 10) } };
 const LOWER2 = { id: "S4", name: "S4 · Lower #2", ex: ["Leg Press", "Single Leg Press", "Leg Curl", "Calf Raise"],
-  rx: { "Leg Press": P(3, 10, 10, 120, 5), "Single Leg Press": P(3, 10, 10, 75, 5), "Leg Curl": P(3, 12, 12, 45, 2.5), "Calf Raise": P(3, 15, 15, 130, 5) } };
+  rx: { "Leg Press": M(3, 120, 5), "Single Leg Press": M(3, 75, 5), "Leg Curl": H(3, 39, 2.5), "Calf Raise": H(3, 130, 10) } };
 const RECOMP = {
   start: "2026-10-12", weeks: 12, maintenanceFrom: 11, startKg: 84.0,
   targets: [83.4, 82.8, 82.2, 81.6, 81.0, 80.4, 79.8, 79.2, 78.6, 78.0, 78.0, 78.0],
@@ -22,23 +24,23 @@ const RECOMP = {
     ] },
     { from: 3, label: "Shoulder deload · week 3", sessions: [
       { id: "S1", name: "S1 · Press", ex: ["Bench Press", "Seated Cable Row", "Lat Pulldown", "Rear Delt Fly", "Tricep Ext"],
-        rx: { "Bench Press": P(4, 6, 6, 42.5, 2.5), "Seated Cable Row": P(3, 10, 10, 52, 2.5), "Lat Pulldown": P(3, 10, 10, 55, 2.5), "Rear Delt Fly": P(3, 12, 12, 32, 7), "Tricep Ext": P(2, 12, 12, 14, 1) } },
+        rx: { "Bench Press": M(4, 40, 2.5), "Seated Cable Row": M(3, 45, 2.5), "Lat Pulldown": M(3, 55.3, 2.5), "Rear Delt Fly": H(3, 39, 6), "Tricep Ext": H(2, 10.2, 1) } },
       LOWER1,
       { id: "S3", name: "S3 · Press #2", ex: ["Bench Press", "Barbell Row", "Lat Pulldown", "Bicep Curl"],
-        rx: { "Bench Press": P(3, 8, 8, 30, 2.5), "Barbell Row": P(3, 10, 10, 50, 2.5), "Lat Pulldown": P(3, 10, 10, 52, 2.5), "Bicep Curl": P(2, 12, 12, 12.5, 1) } },
+        rx: { "Bench Press": M(3, 40, 2.5), "Barbell Row": M(3, 50, 2.5), "Lat Pulldown": M(3, 55.3, 2.5), "Bicep Curl": H(2, 14.7, 1) } },
       LOWER2
     ], rules: [
       "Lower days carry no shoulder work: no overhead press, laterals, incline or dips.",
       "Warm-up: cable external rotation only, 12/side on the lightest setting. Internal rotation and the high-cable 'lucky cat' are cut for now. Log the warm-up as sets.",
-      "Bench +2.5 kg/week, pain-free only. Stop the set if it hurts.",
+      "Progression: reach the top of the rep range on 2 sets in a session → add the step next week (tap ▲ Accept). Pain-free only; stop the set if it hurts.",
       "Overhead work returns next week, once you've had two calendar days in a row with no loaded shoulder work."
     ] },
     { from: 4, label: "Overhead back in · from week 4", sessions: [
       { id: "S1", name: "S1 · Press", ex: ["Bench Press", "Overhead Press", "Seated Cable Row", "Lat Pulldown", "Rear Delt Fly", "Tricep Ext"],
-        rx: { "Bench Press": P(4, 6, 6, 42.5, 2.5), "Overhead Press": P(3, 8, 8, 21, 1, { shoulder: true }), "Seated Cable Row": P(3, 10, 10, 52, 2.5), "Lat Pulldown": P(3, 10, 10, 55, 2.5), "Rear Delt Fly": P(3, 12, 12, 32, 7), "Tricep Ext": P(2, 12, 12, 14, 1) } },
+        rx: { "Bench Press": M(4, 40, 2.5), "Overhead Press": M(3, 21.3, 1, { shoulder: true }), "Seated Cable Row": M(3, 45, 2.5), "Lat Pulldown": M(3, 55.3, 2.5), "Rear Delt Fly": H(3, 39, 6), "Tricep Ext": H(2, 10.2, 1) } },
       LOWER1,
       { id: "S3", name: "S3 · Press #2", ex: ["Bench Press", "Barbell Row", "Lat Pulldown", "Lateral Raise", "Bicep Curl"],
-        rx: { "Bench Press": P(3, 8, 8, 30, 2.5), "Barbell Row": P(3, 10, 10, 50, 2.5), "Lat Pulldown": P(3, 10, 10, 52, 2.5), "Lateral Raise": P(2, 12, 12, 5, 1, { shoulder: true }), "Bicep Curl": P(2, 12, 12, 12.5, 1) } },
+        rx: { "Bench Press": M(3, 40, 2.5), "Barbell Row": M(3, 50, 2.5), "Lat Pulldown": M(3, 55.3, 2.5), "Lateral Raise": H(2, 6, 1, { shoulder: true }), "Bicep Curl": H(2, 14.7, 1) } },
       LOWER2
     ], rules: [
       "Overhead only once a week (S1), laterals only on S3, never on consecutive days, never on lower days.",
@@ -85,26 +87,26 @@ function saveLog(w, key, patch) {
   if (p && (L.reps || []).slice(0, p.sets).filter(r => num(r) != null).length >= p.sets && !ticks[key]) ticks[key] = "✓";
   saveWeek(w, { logs, ticks });
 }
-/* Did this week's log earn the next step? Double progression: hit `hi` reps on every set at ≥ plan weight → +inc.
-   Lifted heavier than planned and still hit `lo` on every set → offer to make that the plan.
+/* Did this week's log earn the next step? Hit `hi` reps on at least 2 sets at ≥ plan weight → +inc next week.
+   Lifted heavier than planned and still hit `lo` on 2+ sets → offer to make that the plan.
    Shoulder lifts: a step over 5% needs the target hit two weeks running. Pain on the day always holds. */
 function verdict(sid, e, w) {
   const key = sid + "|" + e, p = planFor(sid, e, w), L = rLog(w, key);
   if (!p || !L) return null;
   const reps = (L.reps || []).slice(0, p.sets).map(num), kg = num(L.kg) ?? p.kg;
-  if (reps.length < p.sets || reps.some(r => r == null)) return { state: "partial", text: "Log all " + p.sets + " sets to check progression." };
+  if (reps.filter(r => r != null).length < 2) return { state: "partial", text: "Log at least 2 sets to check progression." };
   if (kg == null) return { state: "partial", text: "Add the weight you used." };
   if (L.pain) return { state: "hold", text: "Pain flagged: hold here next week." };
-  const allHi = reps.every(r => r >= p.hi), allLo = reps.every(r => r >= p.lo);
+  const done = reps.filter(r => r != null), allHi = done.filter(r => r >= p.hi).length >= 2, allLo = done.filter(r => r >= p.lo).length >= 2;
   let next = null, why = "";
   if (p.kg == null) { next = kg; why = "Make " + kg + " kg the plan"; }
-  else if (allHi && kg >= p.kg) { next = r25(kg + (p.inc || 0)); why = "Hit " + p.hi + " on every set at " + kg + " kg → " + next + " kg next week"; }
-  else if (kg > p.kg && allLo) { next = kg; why = "You did " + kg + " kg for " + reps.join("/") + " → make " + kg + " kg the plan"; }
-  if (next == null) return { state: "hold", text: "Not yet: " + p.hi + " reps on every set at " + p.kg + " kg (you did " + reps.join("/") + (kg !== p.kg ? " at " + kg + " kg" : "") + ")." };
+  else if (allHi && kg >= p.kg) { next = r25(kg + (p.inc || 0)); why = "Hit " + p.hi + " on 2 sets at " + kg + " kg → " + next + " kg next week"; }
+  else if (kg > p.kg && allLo) { next = kg; why = "You did " + kg + " kg for " + done.join("/") + " → make " + kg + " kg the plan"; }
+  if (next == null) return { state: "hold", text: "Not yet: " + p.hi + " reps on 2 sets at " + p.kg + " kg (you did " + done.join("/") + (kg !== p.kg ? " at " + kg + " kg" : "") + ")." };
   if (next <= p.kg) return { state: "hold", text: "On plan. Same again next week." };
   if (p.shoulder && p.kg && next > p.kg * 1.05 + 1e-9) {
     const prev = w > 1 ? rLog(w - 1, key) : null, pp = w > 1 ? planFor(sid, e, w - 1) : null;
-    const prevMet = prev && pp && !prev.pain && (num(prev.kg) ?? pp.kg) >= p.kg && (prev.reps || []).slice(0, pp.sets).length >= pp.sets && (prev.reps || []).slice(0, pp.sets).every(r => num(r) >= p.hi);
+    const prevMet = prev && pp && !prev.pain && (num(prev.kg) ?? pp.kg) >= p.kg && (prev.reps || []).slice(0, pp.sets).filter(r => num(r) >= p.hi).length >= 2;
     if (!prevMet) return { state: "cap", next, text: why + ", but that's over the 5% shoulder cap. Hit it again next week first." };
   }
   return { state: "ready", next, text: why + "." };
