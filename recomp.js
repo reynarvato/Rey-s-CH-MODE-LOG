@@ -63,53 +63,82 @@ const RECOMP = {
 function phaseFor(w) { return RECOMP.phases.filter(p => p.from <= w).pop(); }
 function sessionsFor(w) { return phaseFor(w).sessions; }
 function totalEx(w) { return sessionsFor(w).reduce((a, s) => a + s.ex.length, 0); }
-/* ---- plan + progression ---- */
+/* ---- plan + progression ----
+   Plans are per lift name ("Bench Press"), not per session, so a progression earned on any day carries into every
+   later session and week that has that lift. doc.recompPlan[name].changes = [{ from: week, plan: { only the fields changed } }];
+   the plan for week w = the default for that session (rx) + every change with from ≤ w, applied in order. */
 const PLAN_FIELDS = ["sets", "lo", "hi", "kg", "inc"];
 const r25 = v => Math.round(v * 4) / 4;
-function planFor(sid, e, w) {
-  const s = sessionsFor(w).find(x => x.id === sid), base = (s && s.rx && s.rx[e]) || null;
-  const ch = (((doc.recompPlan || {})[sid + "|" + e] || {}).changes || []).filter(x => x.from <= w).sort((a, b) => a.from - b.from).pop();
-  if (!base && !ch) return null;
-  return { ...(base || P(3, 8, 12, null, 2.5)), ...(ch ? ch.plan : {}), custom: !!ch };
+function rxFor(sid, e, w) {
+  const here = sessionsFor(w), own = here.find(x => x.id === sid);
+  if (own && own.rx && own.rx[e]) return own.rx[e];
+  for (const s of here) if (s.rx && s.rx[e]) return s.rx[e];
+  for (const ph of [...RECOMP.phases].reverse()) for (const s of ph.sessions) if (s.rx && s.rx[e]) return s.rx[e];
+  return null;
 }
-/* A plan change applies from week `from` onwards and replaces any change at or after that week. */
-function setPlan(key, from, plan) {
+function planChanges(sid, e) { const m = doc.recompPlan || {}; return [...((m[e] || {}).changes || []), ...((m[sid + "|" + e] || {}).changes || [])]; }
+function planFor(sid, e, w) {
+  const base = rxFor(sid, e, w), ch = planChanges(sid, e).filter(x => x.from <= w).sort((a, b) => a.from - b.from || a.at - b.at);
+  if (!base && !ch.length) return null;
+  const out = { ...(base || P(3, 8, 12, null, 2.5)) };
+  ch.forEach(c => PLAN_FIELDS.forEach(f => { if (c.plan[f] !== undefined && c.plan[f] !== null) out[f] = c.plan[f]; }));
+  out.custom = ch.length > 0; return out;
+}
+/* A change applies from week `from` onwards and replaces this lift's changes from that week on. */
+function setPlan(name, from, plan, noRender) {
   doc.recompPlan = doc.recompPlan || {};
-  const keep = ((doc.recompPlan[key] || {}).changes || []).filter(x => x.from < from), clean = {};
-  PLAN_FIELDS.forEach(f => { clean[f] = plan[f] == null || plan[f] === "" ? null : Number(plan[f]); });
+  const keep = ((doc.recompPlan[name] || {}).changes || []).filter(x => x.from < from), clean = {};
+  PLAN_FIELDS.forEach(f => { if (plan[f] !== undefined) clean[f] = plan[f] == null || plan[f] === "" ? null : Number(plan[f]); });
   keep.push({ from, plan: clean, at: Date.now() });
-  doc.recompPlan[key] = { changes: keep, updatedAt: Date.now() }; persist(); renderRecomp();
+  doc.recompPlan[name] = { changes: keep, updatedAt: Date.now() };
+  if (!noRender) { persist(); renderRecomp(); }
 }
 function rLog(w, key) { return (rWeek(w).logs || {})[key] || null; }
 function saveLog(w, key, patch) {
   const wk = rWeek(w), L = { ...(rLog(w, key) || {}), ...patch }, logs = { ...(wk.logs || {}), [key]: L };
   const [sid, e] = key.split("|"), p = planFor(sid, e, w), ticks = { ...wk.ticks };
-  if (p && (L.reps || []).slice(0, p.sets).filter(r => num(r) != null).length >= p.sets && !ticks[key]) ticks[key] = "✓";
+  if (p && workSets(L, p).length >= p.sets && !ticks[key]) ticks[key] = "✓";
   saveWeek(w, { logs, ticks });
 }
-/* Did this week's log earn the next step? Hit `hi` reps on at least 2 sets at ≥ plan weight → +inc next week.
-   Lifted heavier than planned and still hit `lo` on 2+ sets → offer to make that the plan.
+/* Working sets from a log: imported Setgraph sets as they are, or hand-entered reps at one weight. */
+function workSets(L, p) {
+  if (!L) return [];
+  if (Array.isArray(L.sets)) return L.sets.filter(x => num(x.reps) != null).map(x => ({ kg: num(x.kg), reps: num(x.reps) }));
+  const kg = num(L.kg) ?? (p ? p.kg : null);
+  return (L.reps || []).map(num).filter(r => r != null).map(r => ({ kg, reps: r }));
+}
+/* All logs for a lift in a week, whichever session it was done in. */
+function logsByName(w, e) { return Object.entries(rWeek(w).logs || {}).filter(([k]) => k.split("|")[1] === e).map(([, L]) => L); }
+const fmtSets = ss => ss.map(x => x.reps + "×" + (x.kg == null ? "?" : Math.round(x.kg * 100) / 100)).join(", ");
+/* Did this log earn the next step? Top of the rep range on 2 sets at ≥ plan weight → +step next week.
+   2 sets of at least the bottom of the range at a heavier weight than planned → offer that weight as the plan.
    Shoulder lifts: a step over 5% needs the target hit two weeks running. Pain on the day always holds. */
 function verdict(sid, e, w) {
   const key = sid + "|" + e, p = planFor(sid, e, w), L = rLog(w, key);
   if (!p || !L) return null;
-  const reps = (L.reps || []).slice(0, p.sets).map(num), kg = num(L.kg) ?? p.kg;
-  if (reps.filter(r => r != null).length < 2) return { state: "partial", text: "Log at least 2 sets to check progression." };
-  if (kg == null) return { state: "partial", text: "Add the weight you used." };
+  const ss = workSets(L, p);
+  if (ss.length < 2) return { state: "partial", text: "Log at least 2 sets to check progression." };
+  if (ss.some(x => x.kg == null)) return { state: "partial", text: "Add the weight you used." };
   if (L.pain) return { state: "hold", text: "Pain flagged: hold here next week." };
-  const done = reps.filter(r => r != null), allHi = done.filter(r => r >= p.hi).length >= 2, allLo = done.filter(r => r >= p.lo).length >= 2;
+  const top = ss.filter(x => x.reps >= p.hi).map(x => x.kg).sort((a, b) => b - a);
+  const okLo = ss.filter(x => x.reps >= p.lo).map(x => x.kg).sort((a, b) => b - a);
   let next = null, why = "";
-  if (p.kg == null) { next = kg; why = "Make " + kg + " kg the plan"; }
-  else if (allHi && kg >= p.kg) { next = r25(kg + (p.inc || 0)); why = "Hit " + p.hi + " on 2 sets at " + kg + " kg → " + next + " kg next week"; }
-  else if (kg > p.kg && allLo) { next = kg; why = "You did " + kg + " kg for " + done.join("/") + " → make " + kg + " kg the plan"; }
-  if (next == null) return { state: "hold", text: "Not yet: " + p.hi + " reps on 2 sets at " + p.kg + " kg (you did " + done.join("/") + (kg !== p.kg ? " at " + kg + " kg" : "") + ")." };
-  if (next <= p.kg) return { state: "hold", text: "On plan. Same again next week." };
+  if (p.kg == null) { if (okLo.length >= 2) { next = okLo[1]; why = "Make " + okLo[1] + " kg the plan"; } }
+  else if (top.length >= 2 && top[1] >= p.kg) { next = r25(top[1] + (p.inc || 0)); why = "Hit " + p.hi + " on 2 sets at " + top[1] + " kg → " + next + " kg next week"; }
+  else if (okLo.length >= 2 && okLo[1] > p.kg) { next = okLo[1]; why = "2 sets of " + p.lo + "+ at " + okLo[1] + " kg → make " + okLo[1] + " kg the plan"; }
+  if (next == null) return { state: "hold", text: "Not yet: " + p.hi + " reps on 2 sets at " + fmtKg(p.kg) + " (you did " + fmtSets(ss) + ")." };
+  if (p.kg != null && next <= p.kg) return { state: "hold", text: "On plan. Same again next week." };
+  if (p.shoulder && p.kg && next > r25(p.kg + (p.inc || 0))) { next = r25(p.kg + (p.inc || 0)); why = why.replace(/ → .*$/, "") + " → one step only on a shoulder lift: " + next + " kg next week"; } /* never a jump to whatever you lifted */
   if (p.shoulder && p.kg && next > p.kg * 1.05 + 1e-9) {
-    const prev = w > 1 ? rLog(w - 1, key) : null, pp = w > 1 ? planFor(sid, e, w - 1) : null;
-    const prevMet = prev && pp && !prev.pain && (num(prev.kg) ?? pp.kg) >= p.kg && (prev.reps || []).slice(0, pp.sets).filter(r => num(r) >= p.hi).length >= 2;
+    const prevMet = w > 1 && logsByName(w - 1, e).some(L2 => !L2.pain && workSets(L2, planFor(sid, e, w - 1)).filter(x => x.reps >= p.hi && x.kg >= p.kg).length >= 2);
     if (!prevMet) return { state: "cap", next, text: why + ", but that's over the 5% shoulder cap. Hit it again next week first." };
   }
   return { state: "ready", next, text: why + "." };
+}
+/* A verdict whose next weight is already in next week's plan has been accepted. */
+function pendingVerdict(sid, e, w) {
+  const v = verdict(sid, e, w); if (!v || v.next == null) return v;
+  const n = planFor(sid, e, w + 1); return n && n.kg === v.next ? { ...v, accepted: true } : v;
 }
 const fmtKg = v => v == null ? "set kg" : (Math.round(v * 100) / 100) + " kg";
 const fmtPlan = p => p.sets + "×" + (p.lo === p.hi ? p.lo : p.lo + "–" + p.hi) + " · " + fmtKg(p.kg);
@@ -165,6 +194,51 @@ const band = p => p >= .85 ? 1 : p >= .70 ? .5 : 0; /* green ≥85 · amber 70�
 function elapsed(w) { const t = new Date(); t.setHours(0, 0, 0, 0); const d = (t - weekDays(w)[0]) / 864e5 + 1; return Math.max(0, Math.min(1, d / 7)); }
 const fair = (p, w) => { const e = elapsed(w); return e <= 0 ? null : band(Math.min(1, p / e)); };
 
+/* ---- Setgraph import ----
+   Reads Setgraph's "Set export" CSV (Exercise, Date, Repetitions, Weight (kg)), maps exercise names to the plan,
+   drops the warm-up (the first set at each lift, when it's lighter than the heaviest set),
+   works out which session each training day was from the lifts in it, and fills that week's logs and ticks. */
+const SG_ALIAS = { "incline bench press": "Incline DB Press", "incline db press": "Incline DB Press", "overhead dumbell press": "Overhead Press", "overhead dumbbell press": "Overhead Press", "overhead press": "Overhead Press", "assisted dip": "Dips", "dip": "Dips", "dips": "Dips", "db lateral raises": "Lateral Raise", "lateral raises": "Lateral Raise", "tricep extensions ovhd": "Tricep Ext", "tricep extension": "Tricep Ext", "standing calf raise": "Calf Raise", "machine rear delt fly": "Rear Delt Fly", "rear delt fly": "Rear Delt Fly", "leg press 45": "Leg Press", "rdl": "Romanian Deadlift", "bulgarian split squat": "Bulgarian Split Sq" };
+const SESSION_LABEL = { S1: "S1 Press", S2: "S2 Lower", S3: "S3 Press2", S4: "S4 Lower2" };
+function allLiftNames() { const n = new Set(); RECOMP.phases.forEach(ph => ph.sessions.forEach(s => s.ex.forEach(e => n.add(e)))); return [...n]; }
+function sgName(x) { const k = String(x || "").trim().toLowerCase(); return SG_ALIAS[k] || allLiftNames().find(n => n.toLowerCase() === k) || null; }
+function weekOf(dateStr) { const [y, m, d] = dateStr.split("-").map(Number); return Math.floor((new Date(y, m - 1, d) - rStart()) / (7 * 864e5)) + 1; }
+function importSetgraph(text) {
+  const rows = D.parseCSV(text); if (rows.length < 2) return "That file is empty.";
+  const h = rows[0].map(x => String(x).trim().toLowerCase());
+  if (h.includes("activity type")) return "That's Setgraph's Sessions export, which has no sets in it. Export the Set export instead (Setgraph_Set_Export_….csv).";
+  const ci = { ex: h.indexOf("exercise"), date: h.indexOf("date"), reps: h.indexOf("repetitions"), kg: h.indexOf("weight (kg)") };
+  if (Object.values(ci).some(i => i < 0)) return "Couldn't find Exercise, Date, Repetitions and Weight (kg) columns.";
+  const days = {}, unmatched = new Set();
+  rows.slice(1).forEach(r => {
+    const dt = String(r[ci.date] || "").trim(), day = dt.slice(0, 10); if (!/^\d{4}-\d{2}-\d{2}$/.test(day)) return;
+    const w = weekOf(day); if (w < 1 || w > RECOMP.weeks) return;
+    const name = sgName(r[ci.ex]); if (!name) { unmatched.add(String(r[ci.ex]).trim()); return; }
+    const reps = num(r[ci.reps]), kg = num(r[ci.kg]); if (reps == null) return;
+    ((days[day] = days[day] || {})[name] = days[day][name] || []).push({ t: dt, kg: kg ?? 0, reps });
+  });
+  let nSets = 0; const usedByWeek = {}, touched = new Set();
+  Object.keys(days).sort().forEach(day => {
+    const w = weekOf(day), lifts = days[day], names = Object.keys(lifts), sess = sessionsFor(w);
+    usedByWeek[w] = usedByWeek[w] || new Set();
+    const sid = sess.map(s => ({ id: s.id, score: names.filter(n => s.ex.includes(n)).length * 2 - (usedByWeek[w].has(s.id) ? 1 : 0) }))
+      .sort((a, b) => b.score - a.score)[0].id;
+    usedByWeek[w].add(sid);
+    const wk = rWeek(w), logs = { ...(wk.logs || {}) }, ticks = { ...wk.ticks }, ex = sess.find(s => s.id === sid).ex;
+    names.forEach(n => {
+      const arr = lifts[n].sort((a, b) => a.t < b.t ? -1 : 1), top = Math.max(...arr.map(x => x.kg));
+      const work = arr.filter((x, i) => !(i === 0 && x.kg < top && arr.length > 1));
+      logs[sid + "|" + n] = { ...(logs[sid + "|" + n] || {}), sets: work.map(x => ({ kg: x.kg, reps: x.reps })), date: day, src: "setgraph" };
+      if (ex.includes(n)) ticks[sid + "|" + n] = "✓"; nSets += work.length;
+    });
+    doc.recompWeeks = doc.recompWeeks || {}; doc.recompWeeks[String(w)] = { ...wk, logs, ticks, updatedAt: Date.now() };
+    const rd = rDay(day); if (!rd.session) { doc.recompDays = doc.recompDays || {}; doc.recompDays[day] = { ...rd, session: SESSION_LABEL[sid], updatedAt: Date.now() }; }
+    touched.add(w);
+  });
+  persist(); rWeekShown = touched.size ? Math.max(...touched) : rWeekShown; renderRecomp();
+  return "Imported " + nSets + " working sets from " + Object.keys(days).length + " days" + (touched.size ? " (week " + [...touched].sort((a, b) => a - b).join(", ") + ")" : "") + "." + (unmatched.size ? " Not in the plan, skipped: " + [...unmatched].join(", ") + "." : "");
+}
+
 /* ---- render ---- */
 let rWeekShown = null, rOpen = null, rEditing = false;
 /* Panel for one exercise in one week: plan (editable), the sets you did, pain flag, done/skip, progression. */
@@ -190,24 +264,32 @@ function exercisePanel(w, s, e, p) {
     const r = el("div", "rp-row");
     r.append(btn("Save from week " + w, "yes", () => {
       const plan = {}; Object.keys(f).forEach(n => { const v = f[n].value.trim().replace(",", "."); plan[n] = v === "" || isNaN(Number(v)) ? null : Number(v); });
-      if (!plan.sets || !plan.lo) return; if (!plan.hi || plan.hi < plan.lo) plan.hi = plan.lo; rEditing = false; setPlan(k, w, plan);
+      if (!plan.sets || !plan.lo) return; if (!plan.hi || plan.hi < plan.lo) plan.hi = plan.lo; rEditing = false; setPlan(e, w, plan);
     }), btn("Cancel", "sm", () => { rEditing = false; renderRecomp(); }));
     box.appendChild(r);
     box.appendChild(el("div", "empty small", "Applies from week " + w + " on. Earlier weeks keep what they were. Min = max means fixed reps."));
   }
 
   /* what you did */
-  const sets = p ? p.sets : Math.max(3, (L.reps || []).length);
-  const dr = el("div", "rp-row"); dr.appendChild(el("span", "rp-l", "Did"));
-  const kgI = inp(L.kg ?? (p ? p.kg : ""), "kg", 6.5); kgI.onchange = () => { const v = kgI.value.trim().replace(",", "."); saveLog(w, k, { kg: v === "" || isNaN(+v) ? null : +v }); };
-  dr.append(kgI, el("span", "rp-l", "kg ×"));
-  const reps = (L.reps || []).slice();
-  for (let i = 0; i < sets; i++) {
-    const ri = inp(reps[i], p ? String(p.hi) : "reps", 4.5, "numeric");
-    ri.onchange = () => { const v = ri.value.trim(); const rr = (rLog(w, k) || {}).reps ? [...rLog(w, k).reps] : []; while (rr.length < sets) rr.push(null); rr[i] = v === "" || isNaN(+v) ? null : +v; const patch = { reps: rr }; if ((rLog(w, k) || {}).kg == null && p && p.kg != null && kgI.value.trim() !== "") patch.kg = +kgI.value.trim().replace(",", "."); saveLog(w, k, patch); };
-    dr.appendChild(ri);
+  if (Array.isArray(L.sets)) {
+    const dr = el("div", "rp-row"); dr.append(el("span", "rp-l", "Setgraph"), el("b", null, fmtSets(workSets(L, p)) || "–"));
+    dr.appendChild(btn("Enter by hand", "sm", () => saveLog(w, k, { sets: null, kg: null, reps: null })));
+    box.appendChild(dr);
+    box.appendChild(el("div", "empty small", "Working sets imported " + (L.date ? "from " + L.date : "") + " (warm-ups dropped). Re-import after your next session to update."));
+  } else {
+  /* what you did */
+    const sets = p ? p.sets : Math.max(3, (L.reps || []).length);
+    const dr = el("div", "rp-row"); dr.appendChild(el("span", "rp-l", "Did"));
+    const kgI = inp(L.kg ?? (p ? p.kg : ""), "kg", 6.5); kgI.onchange = () => { const v = kgI.value.trim().replace(",", "."); saveLog(w, k, { kg: v === "" || isNaN(+v) ? null : +v }); };
+    dr.append(kgI, el("span", "rp-l", "kg ×"));
+    const reps = (L.reps || []).slice();
+    for (let i = 0; i < sets; i++) {
+      const ri = inp(reps[i], p ? String(p.hi) : "reps", 4.5, "numeric");
+      ri.onchange = () => { const v = ri.value.trim(); const rr = (rLog(w, k) || {}).reps ? [...rLog(w, k).reps] : []; while (rr.length < sets) rr.push(null); rr[i] = v === "" || isNaN(+v) ? null : +v; const patch = { reps: rr }; if ((rLog(w, k) || {}).kg == null && p && p.kg != null && kgI.value.trim() !== "") patch.kg = +kgI.value.trim().replace(",", "."); saveLog(w, k, patch); };
+      dr.appendChild(ri);
+    }
+    box.appendChild(dr);
   }
-  box.appendChild(dr);
 
   const tr = el("div", "rp-row"), v = wk.ticks[k] || "";
   tr.append(
@@ -219,11 +301,11 @@ function exercisePanel(w, s, e, p) {
   /* progression */
   const vd = p ? verdict(s.id, e, w) : null;
   if (vd) {
-    const vr = el("div", "rp-verdict " + vd.state); vr.appendChild(el("span", null, vd.text));
-    const already = p && vd.next != null && (() => { const n = planFor(s.id, e, w + 1); return n && n.kg === vd.next; })();
+    const vr = el("div", "rp-verdict " + vd.state); vr.appendChild(el("span", null, vd.text + (w < RECOMP.weeks && vd.next != null ? " Carries into every later week and session with this lift." : "")));
+    const already = pendingVerdict(s.id, e, w).accepted;
     if (already) vr.appendChild(el("span", "rp-ok", " ✓ Week " + (w + 1) + " plan updated."));
-    else if (vd.state === "ready" && w < RECOMP.weeks) vr.appendChild(btn("Accept → " + fmtKg(vd.next), "yes", () => setPlan(k, w + 1, { ...p, kg: vd.next })));
-    else if (vd.state === "cap" && w < RECOMP.weeks) vr.appendChild(btn("Add anyway", "sm", () => setPlan(k, w + 1, { ...p, kg: vd.next })));
+    else if (vd.state === "ready" && w < RECOMP.weeks) vr.appendChild(btn("Accept → " + fmtKg(vd.next), "yes", () => setPlan(e, w + 1, { kg: vd.next })));
+    else if (vd.state === "cap" && w < RECOMP.weeks) vr.appendChild(btn("Add anyway", "sm", () => setPlan(e, w + 1, { kg: vd.next })));
     box.appendChild(vr);
   }
   return box;
@@ -240,6 +322,7 @@ function renderRecomp() {
   $("rPhase").hidden = !ph.label; $("rPhase").textContent = ph.label || "";
   const R = $("rRules"); R.innerHTML = ""; R.hidden = !ph.rules;
   (ph.rules || []).forEach(t => { const li = document.createElement("li"); li.textContent = t; R.appendChild(li); });
+  const readyAll = [];
   ph.sessions.forEach(s => {
     const row = document.createElement("div"); row.className = "rsess";
     const h = document.createElement("div"); h.className = "rsess-h";
@@ -248,20 +331,32 @@ function renderRecomp() {
     h.append(nm, ct); row.appendChild(h);
     const chips = document.createElement("div"); chips.className = "chips";
     let openHere = null;
-    s.ex.forEach(e => {
-      const k = s.id + "|" + e, v = wk.ticks[k] || "", p = planFor(s.id, e, w), vd0 = p ? verdict(s.id, e, w) : null, nx = vd0 && vd0.next != null ? planFor(s.id, e, w + 1) : null, vd = vd0 && nx && nx.kg === vd0.next ? null : vd0, b = document.createElement("button");
+    const extra = Object.keys(wk.logs || {}).filter(k => k.startsWith(s.id + "|") && !s.ex.includes(k.split("|")[1])).map(k => k.split("|")[1]);
+    [...s.ex, ...extra].forEach(e => {
+      const k = s.id + "|" + e, v = wk.ticks[k] || "", p = planFor(s.id, e, w), vd0 = p ? pendingVerdict(s.id, e, w) : null, vd = vd0 && !vd0.accepted ? vd0 : null, b = document.createElement("button");
       b.type = "button"; b.className = "tick" + (v === "✓" ? " yes" : v === "✗" ? " no" : "") + (rOpen === k ? " open" : "");
       b.textContent = (v ? v + " " : "") + e + (p && p.shoulder ? " ◆" : "") + (vd && vd.state === "ready" ? " ▲" : "");
-      if (p) { const rx = document.createElement("span"); rx.className = "rx"; const L = rLog(w, k); rx.textContent = fmtPlan(p) + (L && L.reps && L.reps.some(r => num(r) != null) ? " · did " + L.reps.map(r => num(r) ?? "–").join("/") : ""); b.appendChild(rx); }
+      if (p) { const rx = document.createElement("span"); rx.className = "rx"; const ws = workSets(rLog(w, k), p); rx.textContent = fmtPlan(p) + (ws.length ? " · did " + ws.map(x => x.reps).join("/") + (ws.some(x => x.kg !== p.kg) ? " @" + Math.max(...ws.map(x => x.kg || 0)) : "") : ""); b.appendChild(rx); }
       b.setAttribute("aria-label", e + (v === "✓" ? ", done" : v === "✗" ? ", skipped" : ", not done") + (vd && vd.state === "ready" ? ", ready to progress" : ""));
       b.onclick = () => { rOpen = rOpen === k ? null : k; renderRecomp(); };
       chips.appendChild(b);
+      if (extra.includes(e)) b.classList.add("extra");
+      if (vd && vd.state === "ready" && !(p && p.shoulder)) readyAll.push([e, vd.next]);
       if (rOpen === k) openHere = [s, e, p];
     });
     row.appendChild(chips);
     if (openHere) row.appendChild(exercisePanel(w, ...openHere));
     S.appendChild(row);
   });
+
+  if (readyAll.length && w < RECOMP.weeks) {
+    const best = {}; readyAll.forEach(([e, n]) => { best[e] = Math.max(best[e] || 0, n); });
+    const bar = document.createElement("div"); bar.className = "rp-verdict ready";
+    bar.append(Object.assign(document.createElement("span"), { textContent: Object.keys(best).length + " lift" + (Object.keys(best).length > 1 ? "s" : "") + " earned a step (shoulder ◆ lifts are accepted one at a time): " + Object.entries(best).map(([e, n]) => e + " → " + fmtKg(n)).join(", ") + "." }));
+    const ab = document.createElement("button"); ab.type = "button"; ab.className = "tick yes"; ab.textContent = "Accept all ▲";
+    ab.onclick = () => { Object.entries(best).forEach(([e, n]) => setPlan(e, w + 1, { kg: n }, true)); persist(); renderRecomp(); };
+    bar.appendChild(ab); S.prepend(bar);
+  }
 
   /* weekly actions */
   const A = $("rActions"); A.innerHTML = "";
@@ -363,6 +458,11 @@ function recompDailyCSV() {
 }
 function recompHasData() { return Object.keys(doc.recompDays || {}).length || Object.keys(doc.recompWeeks || {}).length; }
 
+$("rImport").addEventListener("change", async ev => {
+  const f = ev.target.files && ev.target.files[0]; if (!f) return;
+  try { $("rImportMsg").textContent = importSetgraph(await f.text()); } catch (err) { $("rImportMsg").textContent = "Import failed: " + err.message; }
+  ev.target.value = "";
+});
 $("rPrev").onclick = () => { if (rWeekShown > 1) { rWeekShown--; renderRecomp(); } };
 $("rNext").onclick = () => { if (rWeekShown < RECOMP.weeks) { rWeekShown++; renderRecomp(); } };
 $("rNotes").addEventListener("change", () => saveWeek(rWeekShown, { notes: $("rNotes").value.trim() }));

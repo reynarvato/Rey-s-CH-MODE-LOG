@@ -182,6 +182,7 @@ select.cell{padding-right:4px;cursor:pointer}
 .rp-verdict.cap, .rp-verdict.hold { background: color-mix(in srgb, #FFEB84 var(--mix), var(--card)); }
 .rp-verdict.partial { opacity: .75; }
 .rp-ok { font-weight: 600; }
+.tick.extra { border-style: dashed; }
 </style>
 </head>
 <body>
@@ -388,6 +389,7 @@ select.cell{padding-right:4px;cursor:pointer}
     </section>
     <section class="card">
       <div class="subhead"><span class="lbl">Workouts · tap a lift to log sets, edit the plan, progress ▲</span></div>
+      <div class="rp-row"><label class="ghost filebtn">Import Setgraph sets<input type="file" id="rImport" accept=".csv,text/csv,text/plain"></label><span class="empty small" id="rImportMsg">Setgraph → Export → Set export, then pick the file here.</span></div>
       <div class="rphase" id="rPhase" hidden></div>
       <ul class="rrules" id="rRules" hidden></ul>
       <div id="rSessions" class="rsessions"></div>
