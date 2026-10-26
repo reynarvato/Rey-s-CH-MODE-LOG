@@ -4,11 +4,32 @@
 const RECOMP = {
   start: "2026-10-12", weeks: 12, maintenanceFrom: 11, startKg: 84.0,
   targets: [83.4, 82.8, 82.2, 81.6, 81.0, 80.4, 79.8, 79.2, 78.6, 78.0, 78.0, 78.0],
-  sessions: [
-    { id: "S1", name: "S1 · Press", ex: ["Bench Press", "Incline DB Press", "Overhead Press", "Dips", "Lateral Raise", "Tricep Ext"] },
-    { id: "S2", name: "S2 · Lower", ex: ["Squat", "Romanian Deadlift", "Leg Curl", "Leg Extension", "Calf Raise"] },
-    { id: "S3", name: "S3 · Press #2", ex: ["Bench Press", "Lat Pulldown", "Barbell Row", "Face Pull", "Bicep Curl"] },
-    { id: "S4", name: "S4 · Lower #2", ex: ["Leg Press", "Bulgarian Split Sq", "Overhead Press", "Lateral Raise", "Calf Raise"] }
+  /* Programme by phase: the newest phase whose `from` week is ≤ the week shown applies.
+     Tick keys are "S1|<exercise name>", so earlier weeks keep their ticks when a later phase changes. */
+  phases: [
+    { from: 1, sessions: [
+      { id: "S1", name: "S1 · Press", ex: ["Bench Press", "Incline DB Press", "Overhead Press", "Dips", "Lateral Raise", "Tricep Ext"] },
+      { id: "S2", name: "S2 · Lower", ex: ["Squat", "Romanian Deadlift", "Leg Curl", "Leg Extension", "Calf Raise"] },
+      { id: "S3", name: "S3 · Press #2", ex: ["Bench Press", "Lat Pulldown", "Barbell Row", "Face Pull", "Bicep Curl"] },
+      { id: "S4", name: "S4 · Lower #2", ex: ["Leg Press", "Bulgarian Split Sq", "Overhead Press", "Lateral Raise", "Calf Raise"] }
+    ] },
+    { from: 3, label: "Shoulder deload", sessions: [
+      { id: "S1", name: "S1 · Press", ex: ["Bench Press", "Seated Cable Row", "Lat Pulldown", "Rear Delt Fly", "Tricep Ext"],
+        rx: { "Bench Press": "4×6 · 42.5 kg", "Seated Cable Row": "3×10 · 52 kg", "Lat Pulldown": "3×10 · 55 kg", "Rear Delt Fly": "3×12 · 32 kg", "Tricep Ext": "2×12 · 14 kg" } },
+      { id: "S2", name: "S2 · Lower", ex: ["Squat", "Romanian Deadlift", "Leg Curl", "Leg Extension", "Calf Raise"],
+        rx: { "Squat": "3×8", "Romanian Deadlift": "3×8", "Leg Curl": "3×12", "Leg Extension": "2×15", "Calf Raise": "3×15" } },
+      { id: "S3", name: "S3 · Press #2", ex: ["Bench Press", "Barbell Row", "Lat Pulldown", "Bicep Curl"],
+        rx: { "Bench Press": "3×8 · 30 kg", "Barbell Row": "3×10 · 50 kg", "Lat Pulldown": "3×10 · 52 kg", "Bicep Curl": "2×12 · 12.5 kg" } },
+      { id: "S4", name: "S4 · Lower #2", ex: ["Leg Press", "Single Leg Press", "Leg Curl", "Calf Raise"],
+        rx: { "Leg Press": "3×10 · 120 kg", "Single Leg Press": "3×10 · 75 kg", "Leg Curl": "3×12 · 45 kg", "Calf Raise": "3×15 · 130 kg" } }
+    ], rules: [
+      "Lower days carry no shoulder work: no overhead press, laterals, incline or dips.",
+      "No overhead work until two calendar days in a row with no loaded shoulder work at all.",
+      "Warm-up: cable external rotation only, 12/side on the lightest setting. Internal rotation and the high-cable 'lucky cat' are cut for now. Log the warm-up as sets.",
+      "Bench +2.5 kg/week, pain-free only. Stop the set if it hurts.",
+      "Accessories: fixed sets × reps, no PR chasing.",
+      "When overhead work returns: once a week, +5% max per week, never on consecutive days."
+    ] }
   ],
   actions: [
     { id: "weighed", name: "Weighed 7/7", auto: d => d.filter(x => num(x.weight) != null).length >= 7 },
@@ -21,7 +42,9 @@ const RECOMP = {
   ],
   sessionChoices: ["", "S1 Press", "S2 Lower", "S3 Press2", "S4 Lower2", "BJJ", "Rest"]
 };
-const TOTAL_EX = RECOMP.sessions.reduce((a, s) => a + s.ex.length, 0); /* 21 */
+function phaseFor(w) { return RECOMP.phases.filter(p => p.from <= w).pop(); }
+function sessionsFor(w) { return phaseFor(w).sessions; }
+function totalEx(w) { return sessionsFor(w).reduce((a, s) => a + s.ex.length, 0); }
 function num(v) { if (v === "" || v == null) return null; const n = Number(v); return isNaN(n) ? null : n; }
 
 /* ---- dates ---- */
@@ -48,7 +71,7 @@ function saveDay(key, field, val) {
 function weekStats(w) {
   const wk = rWeek(w), days = weekDays(w).map(d => rDay(ymd(d)));
   let ticks = 0, sessionsDone = 0;
-  RECOMP.sessions.forEach(s => { let any = false; s.ex.forEach(e => { if (wk.ticks[s.id + "|" + e] === "✓") { ticks++; any = true; } }); if (any) sessionsDone++; });
+  sessionsFor(w).forEach(s => { let any = false; s.ex.forEach(e => { if (wk.ticks[s.id + "|" + e] === "✓") { ticks++; any = true; } }); if (any) sessionsDone++; });
   let aDone = 0, aTotal = 0;
   RECOMP.actions.forEach(a => {
     if (a.photoWeeksOnly && !photoWeek(w)) return;
@@ -56,7 +79,7 @@ function weekStats(w) {
   });
   const weights = days.map(d => num(d.weight)).filter(v => v != null);
   const mean = weights.length >= 4 ? weights.reduce((a, b) => a + b, 0) / weights.length : null;
-  return { ticks, sessionsDone, training: ticks / TOTAL_EX, actions: aTotal ? aDone / aTotal : 0, mean, target: RECOMP.targets[w - 1], days, any: ticks > 0 || aDone > 0 || weights.length > 0 };
+  return { ticks, sessionsDone, training: ticks / totalEx(w), actions: aTotal ? aDone / aTotal : 0, mean, target: RECOMP.targets[w - 1], days, any: ticks > 0 || aDone > 0 || weights.length > 0 };
 }
 function actionState(w, a, days) {
   const v = rWeek(w).actions[a.id];
@@ -84,8 +107,11 @@ function renderRecomp() {
   $("rPrev").disabled = w <= 1; $("rNext").disabled = w >= RECOMP.weeks;
 
   /* sessions: one row per session, exercise chips cycle blank → ✓ → ✗ */
-  const S = $("rSessions"); S.innerHTML = "";
-  RECOMP.sessions.forEach(s => {
+  const S = $("rSessions"); S.innerHTML = ""; const ph = phaseFor(w);
+  $("rPhase").hidden = !ph.label; $("rPhase").textContent = ph.label ? ph.label + " · from week " + ph.from : "";
+  const R = $("rRules"); R.innerHTML = ""; R.hidden = !ph.rules;
+  (ph.rules || []).forEach(t => { const li = document.createElement("li"); li.textContent = t; R.appendChild(li); });
+  ph.sessions.forEach(s => {
     const row = document.createElement("div"); row.className = "rsess";
     const h = document.createElement("div"); h.className = "rsess-h";
     const done = s.ex.filter(e => wk.ticks[s.id + "|" + e] === "✓").length;
@@ -95,6 +121,7 @@ function renderRecomp() {
     s.ex.forEach(e => {
       const k = s.id + "|" + e, v = wk.ticks[k] || "", b = document.createElement("button");
       b.type = "button"; b.className = "tick" + (v === "✓" ? " yes" : v === "✗" ? " no" : ""); b.textContent = (v ? v + " " : "") + e;
+      if (s.rx && s.rx[e]) { const rx = document.createElement("span"); rx.className = "rx"; rx.textContent = s.rx[e]; b.appendChild(rx); }
       b.setAttribute("aria-label", e + (v === "✓" ? ", done" : v === "✗" ? ", skipped" : ", not done"));
       b.onclick = () => saveWeek(w, { ticks: { ...wk.ticks, [k]: v === "" ? "✓" : v === "✓" ? "✗" : "" } });
       chips.appendChild(b);
@@ -157,7 +184,7 @@ function renderRecompSummary() {
   $("rsTarget").textContent = "target " + st.target.toFixed(1) + " kg";
   paint($("rsWeightT"), st.mean == null ? null : st.mean <= st.target + .2 ? 1 : st.mean <= st.target + .6 ? .5 : 0);
   /* all-weeks overview: row = week */
-  const B = $("rOverview"); B.innerHTML = ""; let tTicks = 0, tSess = 0, tA = 0, tAT = 0;
+  const B = $("rOverview"); B.innerHTML = ""; let tTicks = 0, tSess = 0, tA = 0, tAT = 0, tEx = 0;
   for (let i = 1; i <= RECOMP.weeks; i++) {
     const s = weekStats(i), tr = document.createElement("tr");
     if (i === w) tr.className = "today";
@@ -166,9 +193,9 @@ function renderRecompSummary() {
       td(s.target.toFixed(1), "m n"), td(s.mean == null ? "–" : s.mean.toFixed(1), "m n", s.mean == null ? null : s.mean <= s.target + .2 ? 1 : s.mean <= s.target + .6 ? .5 : 0));
     tr.onclick = () => { rWeekShown = i; renderRecomp(); $("pageRecomp").scrollIntoView({ block: "start" }); };
     B.appendChild(tr);
-    if (i <= 10) { tTicks += s.ticks; tSess += s.sessionsDone; RECOMP.actions.forEach(a => { if (a.photoWeeksOnly && !photoWeek(i)) return; tAT++; if (actionState(i, a, s.days) === "✓") tA++; }); }
+    if (i <= 10) { tTicks += s.ticks; tEx += totalEx(i); tSess += s.sessionsDone; RECOMP.actions.forEach(a => { if (a.photoWeeksOnly && !photoWeek(i)) return; tAT++; if (actionState(i, a, s.days) === "✓") tA++; }); }
   }
-  $("rTotal").textContent = "Weeks 1–10: " + tSess + " sessions · training " + Math.round(tTicks / (TOTAL_EX * 10) * 100) + "% · actions " + Math.round(tA / tAT * 100) + "%. Design point 85%; below 70% two weeks running → fix the schedule, not the diet.";
+  $("rTotal").textContent = "Weeks 1–10: " + tSess + " sessions · training " + Math.round(tTicks / tEx * 100) + "% · actions " + Math.round(tA / tAT * 100) + "%. Design point 85%; below 70% two weeks running → fix the schedule, not the diet.";
   renderWeightChart();
 }
 function renderWeightChart() {
