@@ -30,10 +30,8 @@ const RECOMP = {
         rx: { "Bench Press": M(3, 40, 2.5), "Barbell Row": M(3, 50, 2.5), "Lat Pulldown": M(3, 55.3, 2.5), "Bicep Curl": H(2, 14.7, 1) } },
       LOWER2
     ], rules: [
-      "Lower days carry no shoulder work: no overhead press, laterals, incline or dips.",
-      "Warm-up: cable external rotation only, 12/side on the lightest setting. Internal rotation and the high-cable 'lucky cat' are cut for now. Log the warm-up as sets.",
-      "Progression: reach the top of the rep range on 2 sets in a session → add the step next week (tap ▲ Accept). Pain-free only; stop the set if it hurts.",
-      "Overhead work returns next week, once you've had two calendar days in a row with no loaded shoulder work."
+      "No overhead press, laterals, incline or dips this week.",
+      "Warm-up: cable external rotation only, 12 per side, lightest setting."
     ] },
     { from: 4, label: "Overhead back in · from week 4", sessions: [
       { id: "S1", name: "S1 · Press", ex: ["Bench Press", "Overhead Press", "Seated Cable Row", "Lat Pulldown", "Rear Delt Fly", "Tricep Ext"],
@@ -43,10 +41,8 @@ const RECOMP = {
         rx: { "Bench Press": M(3, 40, 2.5), "Barbell Row": M(3, 50, 2.5), "Lat Pulldown": M(3, 55.3, 2.5), "Lateral Raise": H(2, 6, 1, { shoulder: true }), "Bicep Curl": H(2, 14.7, 1) } },
       LOWER2
     ], rules: [
-      "Overhead only once a week (S1), laterals only on S3, never on consecutive days, never on lower days.",
-      "Start only if you've had two clear days with no loaded shoulder work and it's pain-free. If not, mark those two ✗ and stay on the deload.",
-      "Shoulder lifts (marked ◆) can't go up more than 5% in a week: if the step is bigger, hit the target two weeks running first.",
-      "Incline and dips stay out until the physio has seen it."
+      "Overhead press on S1, laterals on S3 only, and only if the shoulder is pain-free.",
+      "Shoulder lifts ◆ go up one step at a time. Incline and dips stay out until the physio has seen it."
     ] }
   ],
   actions: [
@@ -92,6 +88,21 @@ function setPlan(name, from, plan, noRender) {
   keep.push({ from, plan: clean, at: Date.now() });
   doc.recompPlan[name] = { changes: keep, updatedAt: Date.now() };
   if (!noRender) { persist(); renderRecomp(); }
+}
+function dropPlanWeek(name, w) {
+  const cur = (doc.recompPlan || {})[name]; if (!cur) return;
+  doc.recompPlan[name] = { changes: cur.changes.filter(x => x.from !== w), updatedAt: Date.now() }; persist(); renderRecomp();
+}
+/* v1.5 stored plans per session ("S1|Bench Press"). Fold them into the per-lift plan once; the old key is emptied
+   (not deleted) so the other device's copy doesn't bring it back on merge. */
+function migratePlans() {
+  const m = doc.recompPlan || {}; let changed = false;
+  Object.keys(m).filter(k => k.includes("|") && (m[k].changes || []).length).forEach(k => {
+    const name = k.split("|")[1], own = (m[name] || {}).changes || [];
+    m[name] = { changes: [...m[k].changes, ...own].sort((a, b) => a.from - b.from || a.at - b.at), updatedAt: Date.now() };
+    m[k] = { changes: [], updatedAt: Date.now() }; changed = true;
+  });
+  if (changed) persist();
 }
 function rLog(w, key) { return (rWeek(w).logs || {})[key] || null; }
 function saveLog(w, key, patch) {
@@ -141,7 +152,8 @@ function pendingVerdict(sid, e, w) {
   const n = planFor(sid, e, w + 1); return n && n.kg === v.next ? { ...v, accepted: true } : v;
 }
 const fmtKg = v => v == null ? "set kg" : (Math.round(v * 100) / 100) + " kg";
-const fmtPlan = p => p.sets + "×" + (p.lo === p.hi ? p.lo : p.lo + "–" + p.hi) + " · " + fmtKg(p.kg);
+const fmtPlan = p => fmtKg(p.kg) + " · goal " + p.hi + " reps ×2";
+const fmtGoal = p => "Goal: " + fmtKg(p.kg) + " for " + p.hi + " reps on 2 sets (" + p.sets + " sets planned)" + (p.kg != null && p.inc ? ", then " + fmtKg(r25(p.kg + p.inc)) : "") + ".";
 function num(v) { if (v === "" || v == null) return null; const n = Number(v); return isNaN(n) ? null : n; }
 
 /* ---- dates ---- */
@@ -251,9 +263,13 @@ function exercisePanel(w, s, e, p) {
   /* plan line */
   const pl = el("div", "rp-row");
   if (p && !rEditing) {
-    pl.append(el("span", "rp-l", "Plan"), el("b", null, fmtPlan(p) + "  (+" + (p.inc ?? 0) + " kg)" + (p.shoulder ? " ◆" : "")));
-    pl.appendChild(btn("Edit", "sm", () => { rEditing = true; renderRecomp(); }));
-    box.appendChild(pl);
+    pl.append(el("b", null, fmtGoal(p) + (p.shoulder ? " ◆" : "")));
+    const src = planChanges(s.id, e).filter(x => x.from <= w).sort((a, b) => a.from - b.from || a.at - b.at).pop();
+    const srcTxt = !src ? "Starting plan." : src.from === w ? "Set this week." : "Carried from week " + src.from + ".";
+    const sl = el("div", "rp-row"); sl.appendChild(el("span", "rp-l", srcTxt));
+    if (src && src.from === w) sl.appendChild(btn("Undo week " + w + " change", "sm", () => dropPlanWeek(e, w)));
+    sl.appendChild(btn("Edit", "sm", () => { rEditing = true; renderRecomp(); }));
+    box.append(pl, sl);
   } else if (p || rEditing) {
     const q = p || P(3, 8, 12, null, 2.5), f = {};
     const g = el("div", "rp-edit");
@@ -311,6 +327,7 @@ function exercisePanel(w, s, e, p) {
   return box;
 }
 function renderRecomp() {
+  migratePlans();
   if (rWeekShown == null) rWeekShown = currentWeek();
   const w = rWeekShown, days = weekDays(w), wk = rWeek(w);
   $("rWeekLabel").textContent = "Week " + w + (isMaint(w) ? " · maintenance" : "");
