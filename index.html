@@ -170,6 +170,18 @@ select.cell{padding-right:4px;cursor:pointer}
 .rphase { font-weight: 600; font-size: 13px; margin: 4px 0 2px; }
 .rrules { margin: 0 0 10px; padding-left: 18px; font-size: 12.5px; line-height: 1.45; opacity: .85; }
 .tick .rx { display: block; font-size: 11px; opacity: .7; font-variant-numeric: tabular-nums; }
+.tick.open { outline: 2px solid var(--fg); outline-offset: 1px; }
+.tick.sm { min-height: 30px; font-size: .78rem; padding: 0 9px; }
+.rpanel { border: 1px solid var(--line); border-radius: 10px; padding: 10px; display: flex; flex-direction: column; gap: 8px; background: var(--card); }
+.rp-row { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; font-size: .84rem; }
+.rp-l { opacity: .7; font-size: .8rem; }
+.rp-edit { display: flex; flex-wrap: wrap; gap: 8px; }
+.rp-f { display: flex; flex-direction: column; gap: 2px; font-size: .72rem; opacity: .9; }
+.rp-verdict { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; font-size: .84rem; padding: 8px; border-radius: 8px; }
+.rp-verdict.ready { background: color-mix(in srgb, #63BE7B var(--mix), var(--card)); }
+.rp-verdict.cap, .rp-verdict.hold { background: color-mix(in srgb, #FFEB84 var(--mix), var(--card)); }
+.rp-verdict.partial { opacity: .75; }
+.rp-ok { font-weight: 600; }
 </style>
 </head>
 <body>
@@ -375,7 +387,7 @@ select.cell{padding-right:4px;cursor:pointer}
       </div>
     </section>
     <section class="card">
-      <div class="subhead"><span class="lbl">Workouts · tap: ✓ done → ✗ skipped → clear</span></div>
+      <div class="subhead"><span class="lbl">Workouts · tap a lift to log sets, edit the plan, progress ▲</span></div>
       <div class="rphase" id="rPhase" hidden></div>
       <ul class="rrules" id="rRules" hidden></ul>
       <div id="rSessions" class="rsessions"></div>

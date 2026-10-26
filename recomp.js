@@ -1,11 +1,18 @@
 /* Recomp tab — 12-week recomposition experiment (from Recomp_Session_Tracker.xlsx).
    One week on screen at a time: tick exercises and weekly actions, log the 7 days, see the summary.
    Data: doc.recompWeeks["1".."12"] and doc.recompDays["YYYY-MM-DD"], each record merged by updatedAt. */
+const P = (sets, lo, hi, kg, inc, o = {}) => ({ sets, lo, hi, kg, inc, ...o });
+const LOWER1 = { id: "S2", name: "S2 · Lower", ex: ["Squat", "Romanian Deadlift", "Leg Curl", "Leg Extension", "Calf Raise"],
+  rx: { "Squat": P(3, 8, 8, null, 5), "Romanian Deadlift": P(3, 8, 8, null, 5), "Leg Curl": P(3, 12, 12, null, 2.5), "Leg Extension": P(2, 15, 15, null, 2.5), "Calf Raise": P(3, 15, 15, null, 5) } };
+const LOWER2 = { id: "S4", name: "S4 · Lower #2", ex: ["Leg Press", "Single Leg Press", "Leg Curl", "Calf Raise"],
+  rx: { "Leg Press": P(3, 10, 10, 120, 5), "Single Leg Press": P(3, 10, 10, 75, 5), "Leg Curl": P(3, 12, 12, 45, 2.5), "Calf Raise": P(3, 15, 15, 130, 5) } };
 const RECOMP = {
   start: "2026-10-12", weeks: 12, maintenanceFrom: 11, startKg: 84.0,
   targets: [83.4, 82.8, 82.2, 81.6, 81.0, 80.4, 79.8, 79.2, 78.6, 78.0, 78.0, 78.0],
   /* Programme by phase: the newest phase whose `from` week is ≤ the week shown applies.
-     Tick keys are "S1|<exercise name>", so earlier weeks keep their ticks when a later phase changes. */
+     Tick and log keys are "S1|<exercise name>", so earlier weeks keep their data when a later phase changes.
+     rx = default plan per exercise: sets × lo–hi reps @ kg, +inc when progression is earned.
+     Your own edits and accepted progressions (doc.recompPlan) override these defaults from the week they start. */
   phases: [
     { from: 1, sessions: [
       { id: "S1", name: "S1 · Press", ex: ["Bench Press", "Incline DB Press", "Overhead Press", "Dips", "Lateral Raise", "Tricep Ext"] },
@@ -13,22 +20,31 @@ const RECOMP = {
       { id: "S3", name: "S3 · Press #2", ex: ["Bench Press", "Lat Pulldown", "Barbell Row", "Face Pull", "Bicep Curl"] },
       { id: "S4", name: "S4 · Lower #2", ex: ["Leg Press", "Bulgarian Split Sq", "Overhead Press", "Lateral Raise", "Calf Raise"] }
     ] },
-    { from: 3, label: "Shoulder deload", sessions: [
+    { from: 3, label: "Shoulder deload · week 3", sessions: [
       { id: "S1", name: "S1 · Press", ex: ["Bench Press", "Seated Cable Row", "Lat Pulldown", "Rear Delt Fly", "Tricep Ext"],
-        rx: { "Bench Press": "4×6 · 42.5 kg", "Seated Cable Row": "3×10 · 52 kg", "Lat Pulldown": "3×10 · 55 kg", "Rear Delt Fly": "3×12 · 32 kg", "Tricep Ext": "2×12 · 14 kg" } },
-      { id: "S2", name: "S2 · Lower", ex: ["Squat", "Romanian Deadlift", "Leg Curl", "Leg Extension", "Calf Raise"],
-        rx: { "Squat": "3×8", "Romanian Deadlift": "3×8", "Leg Curl": "3×12", "Leg Extension": "2×15", "Calf Raise": "3×15" } },
+        rx: { "Bench Press": P(4, 6, 6, 42.5, 2.5), "Seated Cable Row": P(3, 10, 10, 52, 2.5), "Lat Pulldown": P(3, 10, 10, 55, 2.5), "Rear Delt Fly": P(3, 12, 12, 32, 7), "Tricep Ext": P(2, 12, 12, 14, 1) } },
+      LOWER1,
       { id: "S3", name: "S3 · Press #2", ex: ["Bench Press", "Barbell Row", "Lat Pulldown", "Bicep Curl"],
-        rx: { "Bench Press": "3×8 · 30 kg", "Barbell Row": "3×10 · 50 kg", "Lat Pulldown": "3×10 · 52 kg", "Bicep Curl": "2×12 · 12.5 kg" } },
-      { id: "S4", name: "S4 · Lower #2", ex: ["Leg Press", "Single Leg Press", "Leg Curl", "Calf Raise"],
-        rx: { "Leg Press": "3×10 · 120 kg", "Single Leg Press": "3×10 · 75 kg", "Leg Curl": "3×12 · 45 kg", "Calf Raise": "3×15 · 130 kg" } }
+        rx: { "Bench Press": P(3, 8, 8, 30, 2.5), "Barbell Row": P(3, 10, 10, 50, 2.5), "Lat Pulldown": P(3, 10, 10, 52, 2.5), "Bicep Curl": P(2, 12, 12, 12.5, 1) } },
+      LOWER2
     ], rules: [
       "Lower days carry no shoulder work: no overhead press, laterals, incline or dips.",
-      "No overhead work until two calendar days in a row with no loaded shoulder work at all.",
       "Warm-up: cable external rotation only, 12/side on the lightest setting. Internal rotation and the high-cable 'lucky cat' are cut for now. Log the warm-up as sets.",
       "Bench +2.5 kg/week, pain-free only. Stop the set if it hurts.",
-      "Accessories: fixed sets × reps, no PR chasing.",
-      "When overhead work returns: once a week, +5% max per week, never on consecutive days."
+      "Overhead work returns next week, once you've had two calendar days in a row with no loaded shoulder work."
+    ] },
+    { from: 4, label: "Overhead back in · from week 4", sessions: [
+      { id: "S1", name: "S1 · Press", ex: ["Bench Press", "Overhead Press", "Seated Cable Row", "Lat Pulldown", "Rear Delt Fly", "Tricep Ext"],
+        rx: { "Bench Press": P(4, 6, 6, 42.5, 2.5), "Overhead Press": P(3, 8, 8, 21, 1, { shoulder: true }), "Seated Cable Row": P(3, 10, 10, 52, 2.5), "Lat Pulldown": P(3, 10, 10, 55, 2.5), "Rear Delt Fly": P(3, 12, 12, 32, 7), "Tricep Ext": P(2, 12, 12, 14, 1) } },
+      LOWER1,
+      { id: "S3", name: "S3 · Press #2", ex: ["Bench Press", "Barbell Row", "Lat Pulldown", "Lateral Raise", "Bicep Curl"],
+        rx: { "Bench Press": P(3, 8, 8, 30, 2.5), "Barbell Row": P(3, 10, 10, 50, 2.5), "Lat Pulldown": P(3, 10, 10, 52, 2.5), "Lateral Raise": P(2, 12, 12, 5, 1, { shoulder: true }), "Bicep Curl": P(2, 12, 12, 12.5, 1) } },
+      LOWER2
+    ], rules: [
+      "Overhead only once a week (S1), laterals only on S3, never on consecutive days, never on lower days.",
+      "Start only if you've had two clear days with no loaded shoulder work and it's pain-free. If not, mark those two ✗ and stay on the deload.",
+      "Shoulder lifts (marked ◆) can't go up more than 5% in a week: if the step is bigger, hit the target two weeks running first.",
+      "Incline and dips stay out until the physio has seen it."
     ] }
   ],
   actions: [
@@ -45,6 +61,56 @@ const RECOMP = {
 function phaseFor(w) { return RECOMP.phases.filter(p => p.from <= w).pop(); }
 function sessionsFor(w) { return phaseFor(w).sessions; }
 function totalEx(w) { return sessionsFor(w).reduce((a, s) => a + s.ex.length, 0); }
+/* ---- plan + progression ---- */
+const PLAN_FIELDS = ["sets", "lo", "hi", "kg", "inc"];
+const r25 = v => Math.round(v * 4) / 4;
+function planFor(sid, e, w) {
+  const s = sessionsFor(w).find(x => x.id === sid), base = (s && s.rx && s.rx[e]) || null;
+  const ch = (((doc.recompPlan || {})[sid + "|" + e] || {}).changes || []).filter(x => x.from <= w).sort((a, b) => a.from - b.from).pop();
+  if (!base && !ch) return null;
+  return { ...(base || P(3, 8, 12, null, 2.5)), ...(ch ? ch.plan : {}), custom: !!ch };
+}
+/* A plan change applies from week `from` onwards and replaces any change at or after that week. */
+function setPlan(key, from, plan) {
+  doc.recompPlan = doc.recompPlan || {};
+  const keep = ((doc.recompPlan[key] || {}).changes || []).filter(x => x.from < from), clean = {};
+  PLAN_FIELDS.forEach(f => { clean[f] = plan[f] == null || plan[f] === "" ? null : Number(plan[f]); });
+  keep.push({ from, plan: clean, at: Date.now() });
+  doc.recompPlan[key] = { changes: keep, updatedAt: Date.now() }; persist(); renderRecomp();
+}
+function rLog(w, key) { return (rWeek(w).logs || {})[key] || null; }
+function saveLog(w, key, patch) {
+  const wk = rWeek(w), L = { ...(rLog(w, key) || {}), ...patch }, logs = { ...(wk.logs || {}), [key]: L };
+  const [sid, e] = key.split("|"), p = planFor(sid, e, w), ticks = { ...wk.ticks };
+  if (p && (L.reps || []).slice(0, p.sets).filter(r => num(r) != null).length >= p.sets && !ticks[key]) ticks[key] = "✓";
+  saveWeek(w, { logs, ticks });
+}
+/* Did this week's log earn the next step? Double progression: hit `hi` reps on every set at ≥ plan weight → +inc.
+   Lifted heavier than planned and still hit `lo` on every set → offer to make that the plan.
+   Shoulder lifts: a step over 5% needs the target hit two weeks running. Pain on the day always holds. */
+function verdict(sid, e, w) {
+  const key = sid + "|" + e, p = planFor(sid, e, w), L = rLog(w, key);
+  if (!p || !L) return null;
+  const reps = (L.reps || []).slice(0, p.sets).map(num), kg = num(L.kg) ?? p.kg;
+  if (reps.length < p.sets || reps.some(r => r == null)) return { state: "partial", text: "Log all " + p.sets + " sets to check progression." };
+  if (kg == null) return { state: "partial", text: "Add the weight you used." };
+  if (L.pain) return { state: "hold", text: "Pain flagged: hold here next week." };
+  const allHi = reps.every(r => r >= p.hi), allLo = reps.every(r => r >= p.lo);
+  let next = null, why = "";
+  if (p.kg == null) { next = kg; why = "Make " + kg + " kg the plan"; }
+  else if (allHi && kg >= p.kg) { next = r25(kg + (p.inc || 0)); why = "Hit " + p.hi + " on every set at " + kg + " kg → " + next + " kg next week"; }
+  else if (kg > p.kg && allLo) { next = kg; why = "You did " + kg + " kg for " + reps.join("/") + " → make " + kg + " kg the plan"; }
+  if (next == null) return { state: "hold", text: "Not yet: " + p.hi + " reps on every set at " + p.kg + " kg (you did " + reps.join("/") + (kg !== p.kg ? " at " + kg + " kg" : "") + ")." };
+  if (next <= p.kg) return { state: "hold", text: "On plan. Same again next week." };
+  if (p.shoulder && p.kg && next > p.kg * 1.05 + 1e-9) {
+    const prev = w > 1 ? rLog(w - 1, key) : null, pp = w > 1 ? planFor(sid, e, w - 1) : null;
+    const prevMet = prev && pp && !prev.pain && (num(prev.kg) ?? pp.kg) >= p.kg && (prev.reps || []).slice(0, pp.sets).length >= pp.sets && (prev.reps || []).slice(0, pp.sets).every(r => num(r) >= p.hi);
+    if (!prevMet) return { state: "cap", next, text: why + ", but that's over the 5% shoulder cap. Hit it again next week first." };
+  }
+  return { state: "ready", next, text: why + "." };
+}
+const fmtKg = v => v == null ? "set kg" : (Math.round(v * 100) / 100) + " kg";
+const fmtPlan = p => p.sets + "×" + (p.lo === p.hi ? p.lo : p.lo + "–" + p.hi) + " · " + fmtKg(p.kg);
 function num(v) { if (v === "" || v == null) return null; const n = Number(v); return isNaN(n) ? null : n; }
 
 /* ---- dates ---- */
@@ -98,7 +164,68 @@ function elapsed(w) { const t = new Date(); t.setHours(0, 0, 0, 0); const d = (t
 const fair = (p, w) => { const e = elapsed(w); return e <= 0 ? null : band(Math.min(1, p / e)); };
 
 /* ---- render ---- */
-let rWeekShown = null;
+let rWeekShown = null, rOpen = null, rEditing = false;
+/* Panel for one exercise in one week: plan (editable), the sets you did, pain flag, done/skip, progression. */
+function exercisePanel(w, s, e, p) {
+  const k = s.id + "|" + e, wk = rWeek(w), L = rLog(w, k) || {}, box = document.createElement("div"); box.className = "rpanel";
+  const el = (tag, cls, txt) => { const x = document.createElement(tag); if (cls) x.className = cls; if (txt != null) x.textContent = txt; return x; };
+  const inp = (val, ph, w2, mode = "decimal") => { const i = el("input", "cell"); i.type = "text"; i.inputMode = mode; i.placeholder = ph; i.value = val ?? ""; i.style.width = w2 + "ch"; return i; };
+  const btn = (txt, cls, fn) => { const b = el("button", "tick" + (cls ? " " + cls : ""), txt); b.type = "button"; b.onclick = fn; return b; };
+
+  /* plan line */
+  const pl = el("div", "rp-row");
+  if (p && !rEditing) {
+    pl.append(el("span", "rp-l", "Plan"), el("b", null, fmtPlan(p) + "  (+" + (p.inc ?? 0) + " kg)" + (p.shoulder ? " ◆" : "")));
+    pl.appendChild(btn("Edit", "sm", () => { rEditing = true; renderRecomp(); }));
+    box.appendChild(pl);
+  } else if (p || rEditing) {
+    const q = p || P(3, 8, 12, null, 2.5), f = {};
+    const g = el("div", "rp-edit");
+    [["sets", "sets", 3, "numeric"], ["lo", "min reps", 4, "numeric"], ["hi", "max reps", 4, "numeric"], ["kg", "kg", 5], ["inc", "+kg step", 5]].forEach(([n, ph, w2, m]) => {
+      const lab = el("label", "rp-f"); lab.append(el("span", null, ph)); f[n] = inp(q[n], ph, w2 + 1.5, m); lab.appendChild(f[n]); g.appendChild(lab);
+    });
+    box.appendChild(g);
+    const r = el("div", "rp-row");
+    r.append(btn("Save from week " + w, "yes", () => {
+      const plan = {}; Object.keys(f).forEach(n => { const v = f[n].value.trim().replace(",", "."); plan[n] = v === "" || isNaN(Number(v)) ? null : Number(v); });
+      if (!plan.sets || !plan.lo) return; if (!plan.hi || plan.hi < plan.lo) plan.hi = plan.lo; rEditing = false; setPlan(k, w, plan);
+    }), btn("Cancel", "sm", () => { rEditing = false; renderRecomp(); }));
+    box.appendChild(r);
+    box.appendChild(el("div", "empty small", "Applies from week " + w + " on. Earlier weeks keep what they were. Min = max means fixed reps."));
+  }
+
+  /* what you did */
+  const sets = p ? p.sets : Math.max(3, (L.reps || []).length);
+  const dr = el("div", "rp-row"); dr.appendChild(el("span", "rp-l", "Did"));
+  const kgI = inp(L.kg ?? (p ? p.kg : ""), "kg", 6.5); kgI.onchange = () => { const v = kgI.value.trim().replace(",", "."); saveLog(w, k, { kg: v === "" || isNaN(+v) ? null : +v }); };
+  dr.append(kgI, el("span", "rp-l", "kg ×"));
+  const reps = (L.reps || []).slice();
+  for (let i = 0; i < sets; i++) {
+    const ri = inp(reps[i], p ? String(p.hi) : "reps", 4.5, "numeric");
+    ri.onchange = () => { const v = ri.value.trim(); const rr = (rLog(w, k) || {}).reps ? [...rLog(w, k).reps] : []; while (rr.length < sets) rr.push(null); rr[i] = v === "" || isNaN(+v) ? null : +v; const patch = { reps: rr }; if ((rLog(w, k) || {}).kg == null && p && p.kg != null && kgI.value.trim() !== "") patch.kg = +kgI.value.trim().replace(",", "."); saveLog(w, k, patch); };
+    dr.appendChild(ri);
+  }
+  box.appendChild(dr);
+
+  const tr = el("div", "rp-row"), v = wk.ticks[k] || "";
+  tr.append(
+    btn("✓ Done", v === "✓" ? "yes" : "", () => saveWeek(w, { ticks: { ...wk.ticks, [k]: v === "✓" ? "" : "✓" } })),
+    btn("✗ Skipped", v === "✗" ? "no" : "", () => saveWeek(w, { ticks: { ...wk.ticks, [k]: v === "✗" ? "" : "✗" } })),
+    btn(L.pain ? "⚠ Pain" : "Pain?", L.pain ? "no" : "", () => saveLog(w, k, { pain: !L.pain })));
+  box.appendChild(tr);
+
+  /* progression */
+  const vd = p ? verdict(s.id, e, w) : null;
+  if (vd) {
+    const vr = el("div", "rp-verdict " + vd.state); vr.appendChild(el("span", null, vd.text));
+    const already = p && vd.next != null && (() => { const n = planFor(s.id, e, w + 1); return n && n.kg === vd.next; })();
+    if (already) vr.appendChild(el("span", "rp-ok", " ✓ Week " + (w + 1) + " plan updated."));
+    else if (vd.state === "ready" && w < RECOMP.weeks) vr.appendChild(btn("Accept → " + fmtKg(vd.next), "yes", () => setPlan(k, w + 1, { ...p, kg: vd.next })));
+    else if (vd.state === "cap" && w < RECOMP.weeks) vr.appendChild(btn("Add anyway", "sm", () => setPlan(k, w + 1, { ...p, kg: vd.next })));
+    box.appendChild(vr);
+  }
+  return box;
+}
 function renderRecomp() {
   if (rWeekShown == null) rWeekShown = currentWeek();
   const w = rWeekShown, days = weekDays(w), wk = rWeek(w);
@@ -108,25 +235,30 @@ function renderRecomp() {
 
   /* sessions: one row per session, exercise chips cycle blank → ✓ → ✗ */
   const S = $("rSessions"); S.innerHTML = ""; const ph = phaseFor(w);
-  $("rPhase").hidden = !ph.label; $("rPhase").textContent = ph.label ? ph.label + " · from week " + ph.from : "";
+  $("rPhase").hidden = !ph.label; $("rPhase").textContent = ph.label || "";
   const R = $("rRules"); R.innerHTML = ""; R.hidden = !ph.rules;
   (ph.rules || []).forEach(t => { const li = document.createElement("li"); li.textContent = t; R.appendChild(li); });
   ph.sessions.forEach(s => {
     const row = document.createElement("div"); row.className = "rsess";
     const h = document.createElement("div"); h.className = "rsess-h";
     const done = s.ex.filter(e => wk.ticks[s.id + "|" + e] === "✓").length;
-    h.innerHTML = ""; const nm = document.createElement("span"); nm.textContent = s.name; const ct = document.createElement("span"); ct.className = "rcount"; ct.textContent = done + "/" + s.ex.length;
+    const nm = document.createElement("span"); nm.textContent = s.name; const ct = document.createElement("span"); ct.className = "rcount"; ct.textContent = done + "/" + s.ex.length;
     h.append(nm, ct); row.appendChild(h);
     const chips = document.createElement("div"); chips.className = "chips";
+    let openHere = null;
     s.ex.forEach(e => {
-      const k = s.id + "|" + e, v = wk.ticks[k] || "", b = document.createElement("button");
-      b.type = "button"; b.className = "tick" + (v === "✓" ? " yes" : v === "✗" ? " no" : ""); b.textContent = (v ? v + " " : "") + e;
-      if (s.rx && s.rx[e]) { const rx = document.createElement("span"); rx.className = "rx"; rx.textContent = s.rx[e]; b.appendChild(rx); }
-      b.setAttribute("aria-label", e + (v === "✓" ? ", done" : v === "✗" ? ", skipped" : ", not done"));
-      b.onclick = () => saveWeek(w, { ticks: { ...wk.ticks, [k]: v === "" ? "✓" : v === "✓" ? "✗" : "" } });
+      const k = s.id + "|" + e, v = wk.ticks[k] || "", p = planFor(s.id, e, w), vd0 = p ? verdict(s.id, e, w) : null, nx = vd0 && vd0.next != null ? planFor(s.id, e, w + 1) : null, vd = vd0 && nx && nx.kg === vd0.next ? null : vd0, b = document.createElement("button");
+      b.type = "button"; b.className = "tick" + (v === "✓" ? " yes" : v === "✗" ? " no" : "") + (rOpen === k ? " open" : "");
+      b.textContent = (v ? v + " " : "") + e + (p && p.shoulder ? " ◆" : "") + (vd && vd.state === "ready" ? " ▲" : "");
+      if (p) { const rx = document.createElement("span"); rx.className = "rx"; const L = rLog(w, k); rx.textContent = fmtPlan(p) + (L && L.reps && L.reps.some(r => num(r) != null) ? " · did " + L.reps.map(r => num(r) ?? "–").join("/") : ""); b.appendChild(rx); }
+      b.setAttribute("aria-label", e + (v === "✓" ? ", done" : v === "✗" ? ", skipped" : ", not done") + (vd && vd.state === "ready" ? ", ready to progress" : ""));
+      b.onclick = () => { rOpen = rOpen === k ? null : k; renderRecomp(); };
       chips.appendChild(b);
+      if (rOpen === k) openHere = [s, e, p];
     });
-    row.appendChild(chips); S.appendChild(row);
+    row.appendChild(chips);
+    if (openHere) row.appendChild(exercisePanel(w, ...openHere));
+    S.appendChild(row);
   });
 
   /* weekly actions */

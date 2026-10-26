@@ -1,6 +1,6 @@
 /* Service worker: keeps the app working with no signal.
    Bump VERSION on every release so phones pick up the new files. */
-const VERSION = "1.4.0";
+const VERSION = "1.5.0";
 const CACHE = "chmode-" + VERSION;
 const SHELL = ["./", "index.html", "app.js", "merge.js", "recomp.js", "jobs.js", "manifest.webmanifest", "icons/icon-192.png", "icons/icon-512.png", "icons/apple-touch-icon.png"];
 

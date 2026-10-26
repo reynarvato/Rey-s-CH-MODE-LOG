@@ -25,6 +25,10 @@ Done in v1.1.0 (11 Oct 2026).
 ## Recomp
 - [x] **Recomp tab** (v1.2.0, 11 Oct 2026): 12-week experiment from `Recomp_Session_Tracker.xlsx`. One week per screen: workout ticks (✓/✗), weekly actions (4 tick themselves from the daily log), 7-day daily log, summary, all-weeks table and weight vs target chart. Syncs to `data/recomp/daily_log.csv` for analyse.py.
 
+## Recomp programme
+- [x] **Phases** (v1.4–1.5, 26 Oct 2026): wk 1–2 original, wk 3 shoulder deload, wk 4+ overhead back (OHP on S1, laterals on S3 only).
+- [x] **Per-lift plans + progression**: tap a lift → edit sets × min–max reps @ kg (+step) from this week on; log kg and reps per set; pain flag. Hit max reps on every set at plan weight → ▲ Accept next week's weight. Heavier than plan with min reps → adopt it. Shoulder (◆) steps over 5% need two weeks running. Stored in `recompPlan` (per lift, list of {from week, plan}); set logs in `recompWeeks[w].logs`.
+
 ## Jobs
 - [x] **Jobs tab** (v1.3.0, 15 Oct 2026): save postings found on the phone (link, title, role tag — addable like session types), tick Applied / Interview, set the outcome, notes. Grouped Ongoing (past the auto-reject) → Applied → Saved (not applied yet) → Closed. Syncs to `data/jobs.csv`.
 

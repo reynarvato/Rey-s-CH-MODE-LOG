@@ -66,6 +66,12 @@ t("stats prefs sync, newer wins", () => {
   assert.deepStrictEqual(m.prefs.statsExcluded, ["Lunch"]);
   assert.deepStrictEqual(D.toRemote(m).prefs.statsExcluded, ["Lunch"]);
 });
+t("recomp plan merges per exercise and survives toRemote", () => {
+  const m = D.merge({ recompPlan: { "S1|Bench Press": { changes: [{ from: 4, plan: { kg: 45 } }], updatedAt: 9 } } },
+    { recompPlan: { "S1|Bench Press": { changes: [], updatedAt: 2 }, "S4|Leg Press": { changes: [{ from: 3, plan: { kg: 125 } }], updatedAt: 3 } } });
+  assert.strictEqual(m.recompPlan["S1|Bench Press"].changes[0].plan.kg, 45); assert.strictEqual(m.recompPlan["S4|Leg Press"].changes[0].plan.kg, 125);
+  assert.ok(D.toRemote(m).recompPlan["S4|Leg Press"]);
+});
 t("recomp days and weeks merge per record", () => {
   const m = D.merge({ recompDays: { "2026-10-12": { weight: 83.9, updatedAt: 9 } }, recompWeeks: { "1": { ticks: { "S1|Squat": "✓" }, updatedAt: 1 } } },
     { recompDays: { "2026-10-12": { weight: 84.5, updatedAt: 2 }, "2026-10-13": { weight: 83.7, updatedAt: 3 } }, recompWeeks: { "1": { ticks: {}, updatedAt: 5 } } });
