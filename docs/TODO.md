@@ -31,6 +31,8 @@ Done in v1.1.0 (11 Oct 2026).
 - [x] Starting weights seeded from the Setgraph export of 26 Oct (latest working sets).
 - [x] **Per-lift plans + progression**: tap a lift → edit sets × min–max reps @ kg (+step) from this week on; log kg and reps per set; pain flag. Mid lifts 6–10, high-rep lifts 10–16; hit the top of the range on 2 sets in a session at plan weight → ▲ Accept next week's weight. Heavier than plan with min reps on 2 sets → adopt it. Shoulder (◆) steps over 5% need two weeks running. Stored in `recompPlan` (per lift name, list of {from week, changed fields}); set logs in `recompWeeks[w].logs`.
 
+- [x] **Swaps** (v1.6.2, 30 Oct): S3 (Fri) incline bench + seated row machine from week 3; S1 (Mon) incline bench from week 4. Swapped lifts inherit the replaced lift's goals (PLAN_INHERIT). Re-importing a day replaces that day's earlier import.
+
 ## Jobs
 - [x] **Jobs tab** (v1.3.0, 15 Oct 2026): save postings found on the phone (link, title, role tag — addable like session types), tick Applied / Interview, set the outcome, notes. Grouped Ongoing (past the auto-reject) → Applied → Saved (not applied yet) → Closed. Syncs to `data/jobs.csv`.
 

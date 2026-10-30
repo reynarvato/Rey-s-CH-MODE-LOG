@@ -26,23 +26,23 @@ const RECOMP = {
       { id: "S1", name: "S1 · Press", ex: ["Bench Press", "Seated Cable Row", "Lat Pulldown", "Rear Delt Fly", "Tricep Ext"],
         rx: { "Bench Press": M(4, 40, 2.5), "Seated Cable Row": M(3, 45, 2.5), "Lat Pulldown": M(3, 55.3, 2.5), "Rear Delt Fly": H(3, 39, 6), "Tricep Ext": H(2, 10.2, 1) } },
       LOWER1,
-      { id: "S3", name: "S3 · Press #2", ex: ["Bench Press", "Barbell Row", "Lat Pulldown", "Bicep Curl"],
-        rx: { "Bench Press": M(3, 40, 2.5), "Barbell Row": M(3, 50, 2.5), "Lat Pulldown": M(3, 55.3, 2.5), "Bicep Curl": H(2, 14.7, 1) } },
+      { id: "S3", name: "S3 · Press #2", ex: ["Incline Bench Press", "Seated Row Machine", "Lat Pulldown", "Bicep Curl"],
+        rx: { "Incline Bench Press": M(3, 40, 2.5), "Seated Row Machine": M(3, 50, 2.5), "Lat Pulldown": M(3, 55.3, 2.5), "Bicep Curl": H(2, 14.7, 1) } },
       LOWER2
     ], rules: [
-      "No overhead press, laterals, incline or dips this week.",
+      "No overhead press, laterals or dips this week. Friday (S3): incline bench and the seated row machine.",
       "Warm-up: cable external rotation only, 12 per side, lightest setting."
     ] },
     { from: 4, label: "Overhead back in · from week 4", sessions: [
-      { id: "S1", name: "S1 · Press", ex: ["Bench Press", "Overhead Press", "Seated Cable Row", "Lat Pulldown", "Rear Delt Fly", "Tricep Ext"],
-        rx: { "Bench Press": M(4, 40, 2.5), "Overhead Press": M(3, 21.3, 1, { shoulder: true }), "Seated Cable Row": M(3, 45, 2.5), "Lat Pulldown": M(3, 55.3, 2.5), "Rear Delt Fly": H(3, 39, 6), "Tricep Ext": H(2, 10.2, 1) } },
+      { id: "S1", name: "S1 · Press", ex: ["Incline Bench Press", "Overhead Press", "Seated Cable Row", "Lat Pulldown", "Rear Delt Fly", "Tricep Ext"],
+        rx: { "Incline Bench Press": M(4, 40, 2.5), "Overhead Press": M(3, 21.3, 1, { shoulder: true }), "Seated Cable Row": M(3, 45, 2.5), "Lat Pulldown": M(3, 55.3, 2.5), "Rear Delt Fly": H(3, 39, 6), "Tricep Ext": H(2, 10.2, 1) } },
       LOWER1,
-      { id: "S3", name: "S3 · Press #2", ex: ["Bench Press", "Barbell Row", "Lat Pulldown", "Lateral Raise", "Bicep Curl"],
-        rx: { "Bench Press": M(3, 40, 2.5), "Barbell Row": M(3, 50, 2.5), "Lat Pulldown": M(3, 55.3, 2.5), "Lateral Raise": H(2, 6, 1, { shoulder: true }), "Bicep Curl": H(2, 14.7, 1) } },
+      { id: "S3", name: "S3 · Press #2", ex: ["Incline Bench Press", "Seated Row Machine", "Lat Pulldown", "Lateral Raise", "Bicep Curl"],
+        rx: { "Incline Bench Press": M(3, 40, 2.5), "Seated Row Machine": M(3, 50, 2.5), "Lat Pulldown": M(3, 55.3, 2.5), "Lateral Raise": H(2, 6, 1, { shoulder: true }), "Bicep Curl": H(2, 14.7, 1) } },
       LOWER2
     ], rules: [
       "Overhead press on S1, laterals on S3 only, and only if the shoulder is pain-free.",
-      "Shoulder lifts ◆ go up one step at a time. Incline and dips stay out until the physio has seen it."
+      "Shoulder lifts ◆ go up one step at a time. Dips stay out until the physio has seen it."
     ] }
   ],
   actions: [
@@ -72,7 +72,13 @@ function rxFor(sid, e, w) {
   for (const ph of [...RECOMP.phases].reverse()) for (const s of ph.sessions) if (s.rx && s.rx[e]) return s.rx[e];
   return null;
 }
-function planChanges(sid, e) { const m = doc.recompPlan || {}; return [...((m[e] || {}).changes || []), ...((m[sid + "|" + e] || {}).changes || [])]; }
+/* A swapped-in lift keeps the goals of the lift it replaced: its plan starts from the old lift's changes, and its own changes win from their week on. */
+const PLAN_INHERIT = { "Incline Bench Press": "Bench Press", "Seated Row Machine": "Barbell Row" };
+function planChanges(sid, e) {
+  const m = doc.recompPlan || {}, own = c => ((m[c] || {}).changes || []);
+  const from = PLAN_INHERIT[e] ? own(PLAN_INHERIT[e]).map(c => ({ ...c, at: c.at - 1e13 })) : [];
+  return [...from, ...own(e), ...own(sid + "|" + e)];
+}
 function planFor(sid, e, w) {
   const base = rxFor(sid, e, w), ch = planChanges(sid, e).filter(x => x.from <= w).sort((a, b) => a.from - b.from || a.at - b.at);
   if (!base && !ch.length) return null;
@@ -210,10 +216,15 @@ const fair = (p, w) => { const e = elapsed(w); return e <= 0 ? null : band(Math.
    Reads Setgraph's "Set export" CSV (Exercise, Date, Repetitions, Weight (kg)), maps exercise names to the plan,
    drops the warm-up (the first set at each lift, when it's lighter than the heaviest set),
    works out which session each training day was from the lifts in it, and fills that week's logs and ticks. */
-const SG_ALIAS = { "incline bench press": "Incline DB Press", "incline db press": "Incline DB Press", "overhead dumbell press": "Overhead Press", "overhead dumbbell press": "Overhead Press", "overhead press": "Overhead Press", "assisted dip": "Dips", "dip": "Dips", "dips": "Dips", "db lateral raises": "Lateral Raise", "lateral raises": "Lateral Raise", "tricep extensions ovhd": "Tricep Ext", "tricep extension": "Tricep Ext", "standing calf raise": "Calf Raise", "machine rear delt fly": "Rear Delt Fly", "rear delt fly": "Rear Delt Fly", "leg press 45": "Leg Press", "rdl": "Romanian Deadlift", "bulgarian split squat": "Bulgarian Split Sq" };
+const SG_ALIAS = { "incline bench press": ["Incline Bench Press", "Incline DB Press"], "incline db press": ["Incline Bench Press", "Incline DB Press"], "seated row machine": "Seated Row Machine", "machine row": "Seated Row Machine", "overhead dumbell press": "Overhead Press", "overhead dumbbell press": "Overhead Press", "overhead press": "Overhead Press", "assisted dip": "Dips", "dip": "Dips", "dips": "Dips", "db lateral raises": "Lateral Raise", "lateral raises": "Lateral Raise", "tricep extensions ovhd": "Tricep Ext", "tricep extension": "Tricep Ext", "standing calf raise": "Calf Raise", "machine rear delt fly": "Rear Delt Fly", "rear delt fly": "Rear Delt Fly", "leg press 45": "Leg Press", "rdl": "Romanian Deadlift", "bulgarian split squat": "Bulgarian Split Sq" };
 const SESSION_LABEL = { S1: "S1 Press", S2: "S2 Lower", S3: "S3 Press2", S4: "S4 Lower2" };
 function allLiftNames() { const n = new Set(); RECOMP.phases.forEach(ph => ph.sessions.forEach(s => s.ex.forEach(e => n.add(e)))); return [...n]; }
-function sgName(x) { const k = String(x || "").trim().toLowerCase(); return SG_ALIAS[k] || allLiftNames().find(n => n.toLowerCase() === k) || null; }
+/* Setgraph name → plan name; where one Setgraph name fits two plan names, take the one in that week's programme. */
+function sgName(x, w) {
+  const k = String(x || "").trim().toLowerCase(), a = SG_ALIAS[k];
+  if (Array.isArray(a)) { const here = new Set(sessionsFor(w).flatMap(s => s.ex)); return a.find(n => here.has(n)) || a[a.length - 1]; }
+  return a || allLiftNames().find(n => n.toLowerCase() === k) || null;
+}
 function weekOf(dateStr) { const [y, m, d] = dateStr.split("-").map(Number); return Math.floor((new Date(y, m - 1, d) - rStart()) / (7 * 864e5)) + 1; }
 function importSetgraph(text) {
   const rows = D.parseCSV(text); if (rows.length < 2) return "That file is empty.";
@@ -225,7 +236,7 @@ function importSetgraph(text) {
   rows.slice(1).forEach(r => {
     const dt = String(r[ci.date] || "").trim(), day = dt.slice(0, 10); if (!/^\d{4}-\d{2}-\d{2}$/.test(day)) return;
     const w = weekOf(day); if (w < 1 || w > RECOMP.weeks) return;
-    const name = sgName(r[ci.ex]); if (!name) { unmatched.add(String(r[ci.ex]).trim()); return; }
+    const name = sgName(r[ci.ex], w); if (!name) { unmatched.add(String(r[ci.ex]).trim()); return; }
     const reps = num(r[ci.reps]), kg = num(r[ci.kg]); if (reps == null) return;
     ((days[day] = days[day] || {})[name] = days[day][name] || []).push({ t: dt, kg: kg ?? 0, reps });
   });
@@ -237,6 +248,8 @@ function importSetgraph(text) {
       .sort((a, b) => b.score - a.score)[0].id;
     usedByWeek[w].add(sid);
     const wk = rWeek(w), logs = { ...(wk.logs || {}) }, ticks = { ...wk.ticks }, ex = sess.find(s => s.id === sid).ex;
+    /* re-importing a day replaces what an earlier import put there (e.g. a lift since renamed) */
+    Object.keys(logs).forEach(k => { if (logs[k] && logs[k].src === "setgraph" && logs[k].date === day) { delete logs[k]; delete ticks[k]; } });
     names.forEach(n => {
       const arr = lifts[n].sort((a, b) => a.t < b.t ? -1 : 1), top = Math.max(...arr.map(x => x.kg));
       const work = arr.filter((x, i) => !(i === 0 && x.kg < top && arr.length > 1));
