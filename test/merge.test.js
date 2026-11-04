@@ -100,4 +100,13 @@ t("jobs CSV skips deleted and escapes notes", () => {
   assert.strictEqual(rows.length, 2); assert.deepStrictEqual(rows[0], D.JOBS_HEADER);
   assert.strictEqual(rows[1][1], "ML, Acme"); assert.strictEqual(rows[1][4], "applied"); assert.strictEqual(rows[1][9], 'said "maybe"');
 });
+t("ideas, parts and connections merge per record; deletes persist", () => {
+  const local = { ideas: { i: { id: "i", title: "Turret", updatedAt: 5 } }, ideaNodes: { a: { id: "a", ideaId: "i", x: 10, updatedAt: 9 }, b: { id: "b", deleted: true, updatedAt: 8 } }, ideaLinks: { l: { id: "l", from: "a", to: "b", updatedAt: 3 } }, linkTypes: { list: [{ name: "Power", color: "#f00" }], updatedAt: 2 } };
+  const remote = { ideas: { i: { id: "i", title: "Laser turret", updatedAt: 7 } }, ideaNodes: { a: { id: "a", ideaId: "i", x: 99, updatedAt: 4 }, b: { id: "b", title: "PSU", updatedAt: 6 }, c: { id: "c", title: "New", updatedAt: 1 } }, ideaLinks: { l: { id: "l", deleted: true, updatedAt: 4 } }, linkTypes: { list: [{ name: "Data", color: "#00f" }], updatedAt: 1 } };
+  const m = D.merge(local, remote);
+  assert.strictEqual(m.ideas.i.title, "Laser turret"); assert.strictEqual(m.ideaNodes.a.x, 10);
+  assert.ok(m.ideaNodes.b.deleted); assert.ok(m.ideaNodes.c); assert.ok(m.ideaLinks.l.deleted); assert.strictEqual(m.linkTypes.list[0].name, "Power");
+  const r = D.toRemote(m); assert.ok(r.ideas.i && r.ideaNodes.c && r.ideaLinks.l && r.linkTypes);
+  assert.ok(D.sameData(m, r));
+});
 console.log(n + " tests passed");

@@ -36,5 +36,8 @@ Done in v1.1.0 (11 Oct 2026).
 ## Jobs
 - [x] **Jobs tab** (v1.3.0, 15 Oct 2026): save postings found on the phone (link, title, role tag — addable like session types), tick Applied / Interview, set the outcome, notes. Grouped Ongoing (past the auto-reject) → Applied → Saved (not applied yet) → Closed. Syncs to `data/jobs.csv`.
 
+## Ideas
+- [x] **Ideas tab** (v1.7.0, 4 Nov 2026): a canvas per idea or side mission (build, trip, story). Parts with emoji or photo, notes, link, Active/Inactive; tap into a part to plan its subassembly (path shown above). Connections between any two parts at any level, with editable coloured types plus label and notes. At each level, a connection to a part deeper inside is drawn dashed to its box, and one to a part elsewhere shows as a dashed port you can tap to jump to. Ideas list split Active / Inactive.
+
 ## Planned
 - [ ] Spend tab (receipt logging) — see `receipts-spec.md`

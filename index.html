@@ -183,6 +183,81 @@ select.cell{padding-right:4px;cursor:pointer}
 .rp-verdict.partial { opacity: .75; }
 .rp-ok { font-weight: 600; }
 .tick.extra { border-style: dashed; }
+/* ideas */
+.tabs{flex-wrap:wrap}
+.tabs button{padding:8px 9px}
+body.noscroll{overflow:hidden}
+.ilist{display:flex;flex-direction:column}
+.irow{display:flex;align-items:center;gap:8px;border-bottom:1px solid var(--grid);padding:6px 0}
+.irow:last-child{border-bottom:0}
+.irow.off{opacity:.6}
+.iopen{flex:1;min-width:0;display:flex;align-items:center;gap:12px;background:none;border:0;padding:6px 0;text-align:left}
+.iemo{font-size:1.6rem;width:40px;height:40px;display:flex;align-items:center;justify-content:center;background:var(--bg);border-radius:10px;flex:none}
+.itext{display:flex;flex-direction:column;min-width:0}
+.it{font-weight:600;overflow-wrap:anywhere}
+.im{font-family:var(--mono);font-size:.72rem;color:var(--muted)}
+.crumbs{display:flex;align-items:center;gap:2px;overflow-x:auto;white-space:nowrap;-webkit-overflow-scrolling:touch;scrollbar-width:none}
+.crumb{background:none;border:0;padding:8px 6px;color:var(--accent);font-weight:500;font-size:.9rem;white-space:nowrap}
+.crumb.cur{color:var(--fg);font-weight:700}
+.csep{color:var(--muted)}
+.canvas{position:relative;height:calc(100dvh - 250px);min-height:380px;background:var(--card);border:1px solid var(--line);border-radius:14px;overflow:hidden;
+  background-image:radial-gradient(var(--line) 1px,transparent 1px);background-size:22px 22px}
+.canvas svg{width:100%;height:100%;display:block;touch-action:none;user-select:none;-webkit-user-select:none}
+.inode{cursor:pointer}
+.nbox{fill:var(--card);stroke:var(--line);stroke-width:1.5}
+.inode.sel .nbox{stroke:var(--accent);stroke-width:3}
+.inode.from .nbox{stroke:var(--accent);stroke-width:3;stroke-dasharray:6 4}
+.inode.off{opacity:.5}
+.inode.off .nbox{stroke-dasharray:4 4}
+.canvas svg text.ntitle{fill:var(--fg);font-family:var(--body);font-size:12.5px;font-weight:600}
+.canvas svg text.nemo{font-size:26px;fill:var(--fg);font-family:var(--body)}
+.canvas svg text.nmark,.canvas svg text.nbadge{font-size:10.5px;fill:var(--muted)}
+.canvas svg text.nbadge{fill:var(--accent);font-weight:600}
+.gbox{fill:var(--bg);stroke:var(--muted);stroke-width:1.2;stroke-dasharray:5 4}
+.ighost{cursor:pointer}
+.canvas svg text.gtitle{fill:var(--fg);font-family:var(--body);font-size:12px;font-weight:600}
+.canvas svg text.gsub{font-size:9.5px}
+.eline{fill:none;stroke-width:2.4;stroke-linecap:round}
+.iedge.sel .eline{stroke-width:4.5}
+.ehit{fill:none;stroke:transparent;stroke-width:20;cursor:pointer}
+.epill{fill:var(--card);stroke-width:1.2}
+.canvas svg text.etext{fill:var(--fg);font-size:11px}
+.ipill{cursor:pointer}
+.ninit{fill:var(--soft)}
+.canvas svg text.ninitt{fill:var(--accent);font-family:var(--display);font-size:20px;font-weight:700}
+.ctools{position:absolute;top:10px;right:10px;display:flex;gap:6px}
+.ctool{min-height:40px;border:1px solid var(--line);border-radius:10px;background:var(--card);padding:0 12px;font-weight:600;font-size:.88rem;box-shadow:0 1px 3px rgba(0,0,0,.12)}
+.ctool.add{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.cbanner{position:absolute;top:10px;left:10px;right:10px;background:var(--soft);border:1px solid var(--accent);border-radius:10px;padding:7px 12px;font-size:.84rem;display:flex;gap:8px;align-items:center;justify-content:space-between;z-index:1}
+#iBannerText{display:flex;flex-direction:column;min-width:0}
+#iBannerText b{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#iBannerText span{font-size:.72rem;color:var(--muted)}
+.cbanner .link{padding:0;flex:none}
+.cempty{position:absolute;left:24px;right:24px;top:45%;transform:translateY(-50%);text-align:center;color:var(--muted);font-size:.92rem;margin:0;pointer-events:none}
+.cbar{position:absolute;left:10px;right:10px;bottom:10px;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:8px;display:flex;flex-wrap:wrap;gap:6px;align-items:center;box-shadow:0 2px 10px rgba(0,0,0,.15)}
+.cbar-t{flex:1 1 100%;font-weight:600;font-size:.9rem;padding:0 4px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cbar .ghost{padding:9px 12px;min-height:40px}
+.cprimary{border:0;border-radius:10px;background:var(--accent);color:var(--accent-ink);font-weight:700;padding:9px 14px;min-height:40px}
+.sheetbg{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:8;display:flex;align-items:flex-end;justify-content:center}
+.isheet{width:100%;max-width:560px;max-height:88dvh;overflow-y:auto;border-radius:18px 18px 0 0;padding-bottom:calc(20px + env(safe-area-inset-bottom,0px))}
+.sform{display:flex;flex-direction:column;gap:14px}
+.emojis{display:flex;flex-wrap:wrap;gap:4px}
+.emo{width:42px;height:42px;border:1px solid transparent;border-radius:10px;background:var(--bg);font-size:1.3rem;padding:0}
+.emo[aria-pressed="true"]{border-color:var(--accent);background:var(--soft);box-shadow:inset 0 0 0 1px var(--accent)}
+input.emoin{margin-top:6px;min-height:42px}
+#inEmojiWrap.dim{opacity:.45}
+.ilinks{display:flex;flex-direction:column;gap:6px}
+.ilink{display:flex;align-items:center;gap:8px;text-align:left;background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:8px 10px;font-size:.86rem}
+.ilink i{width:10px;height:10px;border-radius:3px;flex:none}
+.ends2{display:flex;align-items:center;gap:8px}
+.lend{flex:1;min-width:0;background:var(--bg);border-radius:10px;padding:10px;display:flex;flex-direction:column;gap:2px}
+.lend b{font-size:.92rem;overflow-wrap:anywhere}
+.lend span{font-size:.72rem;color:var(--muted);font-family:var(--mono);overflow-wrap:anywhere}
+.flip{flex:none;padding:8px 10px}
+.swatch{width:30px;height:30px;border-radius:8px;border:2px solid var(--card);box-shadow:0 0 0 1px var(--line);flex:none;padding:0}
+.tname{flex:1}
+.chip.dot{display:inline-flex;align-items:center;gap:7px}
+.chip.dot i{width:10px;height:10px;border-radius:3px;display:inline-block;flex:none}
 </style>
 </head>
 <body>
@@ -197,6 +272,7 @@ select.cell{padding-right:4px;cursor:pointer}
       <button role="tab" id="tabStats" aria-selected="false">Stats</button>
       <button role="tab" id="tabRecomp" aria-selected="false">Recomp</button>
       <button role="tab" id="tabJobs" aria-selected="false">Jobs</button>
+      <button role="tab" id="tabIdeas" aria-selected="false">Ideas</button>
       <button role="tab" id="tabSync" aria-selected="false">Sync</button>
     </div>
   </header>
@@ -471,6 +547,29 @@ select.cell{padding-right:4px;cursor:pointer}
     <div id="jGroups" class="page"></div>
   </div>
 
+  <!-- ============ IDEAS ============ -->
+  <div id="pageIdeas" class="page" hidden>
+    <div id="iListView" class="page">
+      <button class="big" id="iNew" type="button">New idea</button>
+      <div id="iGroups" class="page"></div>
+    </div>
+    <div id="iCanvasView" class="page" hidden>
+      <nav class="crumbs" id="iCrumbs" aria-label="Where you are"></nav>
+      <div class="canvas" id="iCanvas">
+        <svg id="iSvg" role="img" aria-label="Idea canvas. Tap a part to select it, tap it again to open what's inside. Drag to move.">
+          <defs><clipPath id="iClip" clipPathUnits="objectBoundingBox"><rect width="1" height="1" rx=".2"/></clipPath></defs>
+          <g id="iCam"><g id="iEdges"></g><g id="iNodes"></g><g id="iLabels"></g></g>
+        </svg>
+        <div class="cbanner" id="iBanner" hidden><span id="iBannerText"></span><button class="link" id="iBannerCancel" type="button">Cancel</button></div>
+        <p class="cempty" id="iEmpty" hidden></p>
+        <div class="ctools"><button class="ctool add" id="iAdd" type="button">+ Part</button><button class="ctool" id="iFit" type="button">Fit</button></div>
+        <div class="cbar" id="iBar" hidden></div>
+      </div>
+      <p class="empty small" style="margin:0">Tap a part to select it, tap again to open its insides. Drag parts to arrange them, pinch to zoom. Dashed lines lead to parts inside a box or on another level.</p>
+      <div class="foot"><button class="ghost" id="iDetails" type="button">Idea details</button><button class="ghost" id="iTypesBtn" type="button">Connection types</button></div>
+    </div>
+  </div>
+
   <!-- ============ SYNC ============ -->
   <div id="pageSync" class="page" hidden>
     <section class="card">
@@ -515,10 +614,69 @@ select.cell{padding-right:4px;cursor:pointer}
 </div>
 <div class="toast" id="toast" hidden></div>
 <button class="banner" id="updateBanner" type="button" hidden>New version ready — tap to update</button>
+<div class="sheetbg" id="iSheetBg" hidden>
+  <section class="card isheet" id="iSheet" role="dialog" aria-modal="true">
+    <div id="iIdeaForm" class="sform" hidden>
+      <span class="lbl" id="iiHead">New idea</span>
+      <label class="field"><span class="lbl">Name</span><input type="text" id="iiTitle" placeholder="e.g. Laser turret · Hong Kong trip · Short story" maxlength="80"></label>
+      <div class="field"><span class="lbl">Icon</span><div class="emojis" id="iiEmojis"></div><input type="text" id="iiEmojiIn" placeholder="or type any emoji" maxlength="8" class="emoin"></div>
+      <div class="field"><span class="lbl">Status</span><div class="chips" id="iiStatus"></div></div>
+      <label class="field"><span class="lbl">Notes</span><textarea id="iiNotes" placeholder="What it is, why it matters, what done looks like…" style="min-height:80px"></textarea></label>
+      <p class="err" id="iiErr" hidden></p>
+      <button class="big" id="iiSave" type="button">Create and open</button>
+      <div class="confirm">
+        <button class="link" id="iiCancel" type="button">Back</button>
+        <button class="link" id="iiDelete" type="button" hidden style="color:var(--bad)">Delete idea</button>
+        <span id="iiDelConfirm" hidden><span class="small empty" id="iiDelText"></span> <button class="ghost danger" id="iiDelYes" type="button">Yes, delete</button></span>
+      </div>
+    </div>
+    <div id="iNodeForm" class="sform" hidden>
+      <span class="lbl" id="inHead">New part</span>
+      <label class="field"><span class="lbl">Name</span><input type="text" id="inTitle" placeholder="e.g. Controller · Flights · Act 2" maxlength="80"></label>
+      <div class="field"><span class="lbl">Picture</span>
+        <div class="row" style="align-items:center"><div class="thumbs" id="inThumb"></div><label class="ghost filebtn"><span id="inPhotoLbl">Add photo</span><input type="file" id="inFile" accept="image/*"></label></div>
+        <div id="inEmojiWrap"><div class="emojis" id="inEmojis"></div><input type="text" id="inEmojiIn" placeholder="or type any emoji" maxlength="8" class="emoin"></div>
+      </div>
+      <div class="field"><span class="lbl">Status</span><div class="chips" id="inStatus"></div></div>
+      <label class="field"><span class="lbl">Notes</span><textarea id="inNotes" placeholder="Specs, decisions, open questions…" style="min-height:80px"></textarea></label>
+      <label class="field"><span class="lbl">Link</span><input type="url" id="inUrl" placeholder="Datasheet, booking, reference…" inputmode="url" autocapitalize="off" autocorrect="off" spellcheck="false"></label>
+      <div class="field" id="inLinksWrap" hidden><span class="lbl">Connections</span><div class="ilinks" id="inLinks"></div></div>
+      <p class="err" id="inErr" hidden></p>
+      <button class="big" id="inSave" type="button">Add part</button>
+      <button class="second" id="inInside" type="button" hidden>Open inside</button>
+      <div class="confirm">
+        <button class="link" id="inCancel" type="button">Back</button>
+        <button class="link" id="inDelete" type="button" hidden style="color:var(--bad)">Delete part</button>
+        <span id="inDelConfirm" hidden><span class="small empty" id="inDelText"></span> <button class="ghost danger" id="inDelYes" type="button">Yes, delete</button></span>
+      </div>
+    </div>
+    <div id="iLinkForm" class="sform" hidden>
+      <span class="lbl" id="ilHead">Connection</span>
+      <div class="ends2"><div class="lend" id="ilA"></div><button class="ghost flip" id="ilFlip" type="button" aria-label="Swap ends">⇄</button><div class="lend" id="ilB"></div></div>
+      <div class="field"><div class="subhead"><span class="lbl">Type</span><button class="link" id="ilEditTypes" type="button">Edit types</button></div><div class="chips" id="ilTypes"></div></div>
+      <label class="field"><span class="lbl">Label</span><input type="text" id="ilLabel" placeholder="e.g. 5V 2A, JST-XH · REST over WiFi · train, 2h" maxlength="60"></label>
+      <label class="field"><span class="lbl">Notes</span><textarea id="ilNotes" placeholder="Pinout, protocol, timings, what has to be true at this interface…" style="min-height:80px"></textarea></label>
+      <button class="big" id="ilSave" type="button">Add connection</button>
+      <div class="confirm">
+        <button class="link" id="ilCancel" type="button">Back</button>
+        <button class="link" id="ilDelete" type="button" hidden style="color:var(--bad)">Delete connection</button>
+        <span id="ilDelConfirm" hidden><button class="ghost danger" id="ilDelYes" type="button">Yes, delete</button></span>
+      </div>
+    </div>
+    <div id="iTypesForm" class="sform" hidden>
+      <span class="lbl">Connection types</span>
+      <p class="empty small" style="margin:0">Shared by all ideas. Tap a colour to change it. Removing a type keeps it on existing connections, drawn grey.</p>
+      <div id="itRows"></div>
+      <div class="addrow"><input type="text" id="itNew" placeholder="New type, e.g. Plot thread, Travel, Cash" maxlength="30"><button class="ghost" id="itAdd" type="button">Add</button></div>
+      <button class="big" id="itBack" type="button">Done</button>
+    </div>
+  </section>
+</div>
 <div class="lightbox" id="lightbox" hidden><img id="lightImg" alt=""></div>
 <script src="merge.js"></script>
 <script src="app.js"></script>
 <script src="recomp.js"></script>
 <script src="jobs.js"></script>
+<script src="ideas.js"></script>
 </body>
 </html>
