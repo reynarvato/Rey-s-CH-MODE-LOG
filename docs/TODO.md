@@ -27,6 +27,7 @@ Done in v1.1.0 (11 Oct 2026).
 
 ## Recomp programme
 - [x] **Cardio block** (v1.8.0, 8 Nov 2026): weeks 4–6 are cardio only (lifting phase moved to week 7). Recomp → Cardio logs runs and walks (km, minutes, kcal, notes; pace worked out), with week, per-kind, weeks 4–6 block and all-time totals. Cardio can be logged in any week. Stored in `recompCardio`; syncs to `data/recomp/cardio_log.csv`. Weeks 7–9 cardio + weights combo still to plan.
+- [x] **Setgraph Sessions import** (v1.8.1): the same Import Setgraph button takes the Sessions export; Running/Walking in weeks 1–12 become cardio entries (id from start time, so re-imports don't duplicate or overwrite edits). Average pace only uses sessions with both km and time.
 - [x] **Phases** (v1.4–1.5, 26 Oct 2026): wk 1–2 original, wk 3 shoulder deload, wk 4+ overhead back (OHP on S1, laterals on S3 only).
 - [x] **Setgraph import** (v1.6.0): Recomp → Import Setgraph sets reads the Set export, drops the first (warm-up) set per lift, works out each day's session, fills logs + ticks; signals compute from the real sets. Plans are per lift name, so an accepted step carries into every later week and session (Accept all ▲ for non-shoulder lifts).
 - [x] Starting weights seeded from the Setgraph export of 26 Oct (latest working sets).

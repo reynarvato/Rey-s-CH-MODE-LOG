@@ -239,7 +239,7 @@ function weekOf(dateStr) { const [y, m, d] = dateStr.split("-").map(Number); ret
 function importSetgraph(text) {
   const rows = D.parseCSV(text); if (rows.length < 2) return "That file is empty.";
   const h = rows[0].map(x => String(x).trim().toLowerCase());
-  if (h.includes("activity type")) return "That's Setgraph's Sessions export, which has no sets in it. Export the Set export instead (Setgraph_Set_Export_….csv).";
+  if (h.includes("activity type")) return importSetgraphCardio(rows);
   const ci = { ex: h.indexOf("exercise"), date: h.indexOf("date"), reps: h.indexOf("repetitions"), kg: h.indexOf("weight (kg)") };
   if (Object.values(ci).some(i => i < 0)) return "Couldn't find Exercise, Date, Repetitions and Weight (kg) columns.";
   const days = {}, unmatched = new Set();
@@ -279,8 +279,11 @@ function importSetgraph(text) {
 function cardioAll() { return Object.entries(doc.recompCardio || {}).filter(([, c]) => c && !c.deleted && c.date).map(([id, c]) => ({ id, ...c })).sort((a, b) => a.date < b.date ? -1 : a.date > b.date ? 1 : (a.at || 0) - (b.at || 0)); }
 function cardioInWeek(w) { const d = weekDays(w).map(ymd); return cardioAll().filter(c => d.includes(c.date)); }
 function cardioTotals(list) {
-  const t = { n: list.length, km: 0, min: 0, kcal: 0, by: {} };
-  list.forEach(c => { t.km += num(c.km) || 0; t.min += num(c.min) || 0; t.kcal += num(c.kcal) || 0; const b = t.by[c.kind] = t.by[c.kind] || { n: 0, km: 0, min: 0, kcal: 0 }; b.n++; b.km += num(c.km) || 0; b.min += num(c.min) || 0; b.kcal += num(c.kcal) || 0; });
+  const t = { n: 0, km: 0, min: 0, kcal: 0, by: {} };
+  /* pace (pk/pm) only counts sessions that have both a distance and a time */
+  const add = (o, c) => { const k = num(c.km), m = num(c.min); o.n++; o.km += k || 0; o.min += m || 0; o.kcal += num(c.kcal) || 0; if (k > 0 && m > 0) { o.pk += k; o.pm += m; } };
+  t.pk = 0; t.pm = 0;
+  list.forEach(c => { add(t, c); add(t.by[c.kind] = t.by[c.kind] || { n: 0, km: 0, min: 0, kcal: 0, pk: 0, pm: 0 }, c); });
   return t;
 }
 const fmtKm = v => (Math.round(v * 10) / 10) + " km";
@@ -350,13 +353,36 @@ function renderCardio(w) {
   const wt = cardioTotals(list), tot = el("div", "rcardio-tot");
   const line = (lbl, txt, strong) => { const r = el("div", "rp-row"); r.append(el("span", "rp-l", lbl), el(strong ? "b" : "span", null, txt)); tot.appendChild(r); };
   line("Week " + w, fmtTot(wt), true);
-  Object.entries(wt.by).forEach(([n, b]) => line("· " + n, fmtTot(b) + (fmtPace(b.km, b.min) ? " · avg " + fmtPace(b.km, b.min) : "")));
+  Object.entries(wt.by).forEach(([n, b]) => line("· " + n, fmtTot(b) + (fmtPace(b.pk, b.pm) ? " · avg " + fmtPace(b.pk, b.pm) : "")));
   if (CARDIO_BLOCK) {
     const [a1, b1] = CARDIO_BLOCK, bl = []; for (let i = a1; i <= b1; i++) bl.push(...cardioInWeek(i));
     line("Weeks " + a1 + "–" + b1, fmtTot(cardioTotals(bl)), true);
   }
   const all = cardioAll(); if (all.length && CARDIO_BLOCK && all.some(c => { const x = weekOf(c.date); return x < CARDIO_BLOCK[0] || x > CARDIO_BLOCK[1]; })) line("All time", fmtTot(cardioTotals(all)));
   C.appendChild(tot);
+}
+
+/* Setgraph "Sessions export": Running → Run, Walking → Walk, within the 12 weeks. Ids come from the start time, so
+   re-importing never duplicates, and a session you've edited or deleted here is left alone. */
+const SG_CARDIO = { running: "Run", walking: "Walk" };
+function importSetgraphCardio(rows) {
+  const h = rows[0].map(x => String(x).trim().toLowerCase()), c = n => h.indexOf(n);
+  const ci = { type: c("activity type"), start: c("start date"), secs: c("duration (seconds)"), kcal: c("calories (kcal)"), m: c("distance (meters)"), notes: c("notes") };
+  if (ci.type < 0 || ci.start < 0) return "Couldn't find Activity Type and Start Date columns.";
+  doc.recompCardio = doc.recompCardio || {}; let added = 0, kept = 0; const weeks = new Set();
+  rows.slice(1).forEach(r => {
+    const kind = SG_CARDIO[String(r[ci.type] || "").trim().toLowerCase()], st = String(r[ci.start] || "").trim(), day = st.slice(0, 10);
+    if (!kind || !/^\d{4}-\d{2}-\d{2}$/.test(day)) return;
+    const w = weekOf(day); if (w < 1 || w > RECOMP.weeks) return;
+    const id = "sg" + st.replace(/\D/g, "");
+    if (doc.recompCardio[id]) { kept++; return; }
+    const secs = num(r[ci.secs]), m = num(r[ci.m]), kc = num(r[ci.kcal]);
+    doc.recompCardio[id] = { date: day, kind, km: m ? Math.round(m / 10) / 100 : null, min: secs ? Math.round(secs / 6) / 10 : null, kcal: kc, notes: ci.notes >= 0 ? String(r[ci.notes] || "").trim() || null : null, src: "setgraph", at: Date.parse(st.replace(" ", "T")) || Date.now(), updatedAt: Date.now() };
+    const rd = rDay(day); if (!rd.session) { doc.recompDays = doc.recompDays || {}; doc.recompDays[day] = { ...rd, session: "Cardio", updatedAt: Date.now() }; }
+    added++; weeks.add(w);
+  });
+  persist(); if (weeks.size) rWeekShown = Math.max(...weeks); renderRecomp();
+  return "Imported " + added + " run" + (added === 1 ? "" : "s") + "/walks" + (weeks.size ? " (week " + [...weeks].sort((a, b) => a - b).join(", ") + ")" : "") + "." + (kept ? " " + kept + " already here, left as they are." : "");
 }
 
 /* ---- render ---- */
@@ -448,7 +474,7 @@ function renderRecomp() {
   const R = $("rRules"); R.innerHTML = ""; R.hidden = !ph.rules;
   (ph.rules || []).forEach(t => { const li = document.createElement("li"); li.textContent = t; R.appendChild(li); });
   const readyAll = [];
-  $("rLiftHead").hidden = !!ph.cardio; $("rImportRow").hidden = !!ph.cardio;
+  $("rLiftHead").hidden = !!ph.cardio;
   $("rCardioHead").textContent = ph.cardio ? "Cardio · this block's training" : "Cardio · runs and walks";
   ph.sessions.forEach(s => {
     const row = document.createElement("div"); row.className = "rsess";
