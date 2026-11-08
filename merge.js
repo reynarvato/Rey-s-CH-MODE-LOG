@@ -28,6 +28,8 @@
     out.ideaNodes = mergeMap(local.ideaNodes, remote.ideaNodes);
     out.ideaLinks = mergeMap(local.ideaLinks, remote.ideaLinks);
     out.linkTypes = newer(local.linkTypes, remote.linkTypes);
+    out.haradaCells = mergeMap(local.haradaCells, remote.haradaCells);
+    out.haradaTicks = mergeMap(local.haradaTicks, remote.haradaTicks);
     return out;
   }
   function mergeMap(a, b) { a = a || {}; b = b || {}; const o = {}; new Set([...Object.keys(a), ...Object.keys(b)]).forEach(k => { o[k] = newer(a[k], b[k]); }); return o; }
@@ -40,7 +42,7 @@
   /* The shape written to the repo: sessions as an array sorted oldest first, so diffs read like a log. */
   function toRemote(doc) {
     const sessions = Object.values(doc.sessions || {}).sort((a, b) => (a.startTs || 0) - (b.startTs || 0) || (a.id < b.id ? -1 : 1));
-    return { version: 1, types: doc.types || null, active: doc.active || null, prefs: doc.prefs || null, recompWeeks: sortKeys(doc.recompWeeks), recompDays: sortKeys(doc.recompDays), recompPlan: sortKeys(doc.recompPlan), recompCardio: sortKeys(doc.recompCardio), jobRoles: doc.jobRoles || null, jobs: sortKeys(doc.jobs), linkTypes: doc.linkTypes || null, ideas: sortKeys(doc.ideas), ideaNodes: sortKeys(doc.ideaNodes), ideaLinks: sortKeys(doc.ideaLinks), sessions };
+    return { version: 1, types: doc.types || null, active: doc.active || null, prefs: doc.prefs || null, recompWeeks: sortKeys(doc.recompWeeks), recompDays: sortKeys(doc.recompDays), recompPlan: sortKeys(doc.recompPlan), recompCardio: sortKeys(doc.recompCardio), jobRoles: doc.jobRoles || null, jobs: sortKeys(doc.jobs), linkTypes: doc.linkTypes || null, ideas: sortKeys(doc.ideas), ideaNodes: sortKeys(doc.ideaNodes), ideaLinks: sortKeys(doc.ideaLinks), haradaCells: sortKeys(doc.haradaCells), haradaTicks: sortKeys(doc.haradaTicks), sessions };
   }
   function sortKeys(m) { const o = {}; Object.keys(m || {}).sort((x, y) => x.localeCompare(y, undefined, { numeric: true })).forEach(k => { o[k] = m[k]; }); return o; }
   function sameData(a, b) { return JSON.stringify(toRemote(a)) === JSON.stringify(toRemote(b)); }

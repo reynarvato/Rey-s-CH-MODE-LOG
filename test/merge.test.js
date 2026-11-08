@@ -115,4 +115,14 @@ t("ideas, parts and connections merge per record; deletes persist", () => {
   const r = D.toRemote(m); assert.ok(r.ideas.i && r.ideaNodes.c && r.ideaLinks.l && r.linkTypes);
   assert.ok(D.sameData(m, r));
 });
+t("harada cells and ticks merge per record by updatedAt", () => {
+  const m = D.merge(
+    { haradaCells: { g1: { id: "g1", text: "Sleep well", updatedAt: 5 }, g1a1: { id: "g1a1", text: "Bed 23:00", per: "day", updatedAt: 9 } }, haradaTicks: { "g1a1_2026-11-08": { id: "g1a1_2026-11-08", aid: "g1a1", date: "2026-11-08", done: true, updatedAt: 3 } } },
+    { haradaCells: { g1: { id: "g1", text: "Sleep better", updatedAt: 7 } }, haradaTicks: { "g1a1_2026-11-08": { id: "g1a1_2026-11-08", aid: "g1a1", date: "2026-11-08", done: false, updatedAt: 4 }, "g1a1_2026-11-07": { id: "g1a1_2026-11-07", aid: "g1a1", date: "2026-11-07", done: true, updatedAt: 1 } } });
+  assert.strictEqual(m.haradaCells.g1.text, "Sleep better");
+  assert.strictEqual(m.haradaCells.g1a1.text, "Bed 23:00");
+  assert.strictEqual(m.haradaTicks["g1a1_2026-11-08"].done, false);
+  assert.ok(m.haradaTicks["g1a1_2026-11-07"].done);
+  const r = D.toRemote(m); assert.deepStrictEqual(Object.keys(r.haradaCells), ["g1", "g1a1"]); assert.strictEqual(Object.keys(r.haradaTicks).length, 2);
+});
 console.log(n + " tests passed");

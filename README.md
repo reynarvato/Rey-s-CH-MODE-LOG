@@ -38,6 +38,7 @@ Files:
 - `recomp.js` — Recomp tab (12-week experiment)
 - `jobs.js` — Jobs tab (job-hunt tracker)
 - `ideas.js` — Ideas tab (canvas for project ideas: parts, subassemblies, connections)
+- `harada.js` — Harada tab (one big goal → 8 sub-goals → 8 actions each; Today, Grid and Notes views)
 - `merge.js` — pure helpers: merging two logs, CSV export/import (unit-tested in `test/`)
 - `sw.js` — offline cache and update handling
 - `widget/chmode-widget.js` — Scriptable widget
@@ -68,3 +69,7 @@ Ideas live in the same file as `"ideas"`, `"ideaNodes"`, `"ideaLinks"` and `"lin
 - `linkTypes`: `{ list: [{ name, color }], updatedAt }`, shared by all ideas.
 
 `quality` / `exhaustion` are 1–5 or `null` (skipped). Deleted sessions remain as `{ "id", "deleted": true, "updatedAt" }` so a delete on one device sticks.
+
+Harada lives in the same file as `"haradaCells"` and `"haradaTicks"`:
+- `haradaCells.<id>`: `{ id, text, notes, updatedAt }` plus `by` (date) on the centre `c`, `focus` (shown on Today) on sub-goals `g1`–`g8`, and `per` (`day`|`week`|`fortnight`|`month`|`once`) + `times` on actions `g1a1`–`g8a8`. Cells you haven't edited fall back to the starter grid in `harada.js` and aren't stored.
+- `haradaTicks.<actionId>_<YYYY-MM-DD>`: `{ id, aid, date, done, updatedAt }`. Unticking sets `done: false` so it syncs.

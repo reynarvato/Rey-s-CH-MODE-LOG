@@ -259,6 +259,49 @@ input.emoin{margin-top:6px;min-height:42px}
 .tname{flex:1}
 .chip.dot{display:inline-flex;align-items:center;gap:7px}
 .chip.dot i{width:10px;height:10px;border-radius:3px;display:inline-block;flex:none}
+/* Harada */
+.seg{display:flex;background:var(--card);border:1px solid var(--line);border-radius:10px;padding:3px;gap:3px}
+.seg button{flex:1;border:0;background:none;padding:9px 8px;border-radius:7px;font-weight:600;font-size:.9rem;color:var(--muted)}
+.seg button[aria-selected="true"]{background:var(--soft);color:var(--fg);box-shadow:inset 0 0 0 1px var(--accent)}
+.hgoal{background:none;border:0;padding:0;text-align:left;font-family:var(--display);font-weight:700;font-size:1.3rem;color:var(--fg)}
+.hlist{gap:8px}
+.hrow{display:flex;align-items:stretch;gap:10px;border-top:1px solid var(--grid);padding-top:8px}
+.hrow:first-of-type{border-top:0}
+.hcheck{flex:none;width:44px;height:44px;border-radius:10px;border:1.5px solid var(--line);background:var(--bg);font-size:1.2rem;font-weight:700}
+.hcheck.yes{background:color-mix(in srgb,#63BE7B var(--mix),var(--card));border-color:transparent}
+.hbody{flex:1;min-width:0;display:flex;flex-direction:column;align-items:flex-start;gap:2px;background:none;border:0;padding:2px 0;text-align:left}
+.hrow.done .ht{color:var(--muted);text-decoration:line-through}
+.ht{font-weight:600;overflow-wrap:anywhere}
+.hm{font-family:var(--mono);font-size:.72rem;color:var(--muted);display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.hm i{width:9px;height:9px;border-radius:3px;display:inline-block;flex:none}
+.hgrid{display:grid;gap:6px}
+.hgrid.three{grid-template-columns:repeat(3,1fr)}
+.hgrid.full{grid-template-columns:repeat(3,1fr);gap:5px}
+.hblock{display:grid;grid-template-columns:repeat(3,1fr);gap:2px;min-width:0}
+.hc{aspect-ratio:1;min-width:0;border-radius:10px;border:1px solid var(--line);background:var(--card);padding:6px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;text-align:center;overflow:hidden}
+.hc .hct{font-weight:600;font-size:.86rem;line-height:1.2;overflow-wrap:anywhere;display:-webkit-box;-webkit-line-clamp:4;-webkit-box-orient:vertical;overflow:hidden}
+.hc .hcs{font-family:var(--mono);font-size:.66rem;color:var(--muted)}
+.hc.act{background:color-mix(in srgb,var(--hue) 14%,var(--card))}
+.hc.act.met{background:color-mix(in srgb,#63BE7B var(--mix),var(--card));border-color:transparent}
+.hc.goal{background:var(--fg);color:var(--bg);border-color:transparent;box-shadow:inset 0 -4px 0 var(--hue)}
+.hc.goal .hcs{color:color-mix(in srgb,var(--bg) 75%,var(--fg))}
+.hc.goal.focus::after{content:"FOCUS";font-family:var(--mono);font-size:.56rem;letter-spacing:.1em;color:var(--hue)}
+.hgrid.full .hc.goal.focus::after{display:none}
+.hc.centre{background:var(--accent);color:var(--accent-ink);border-color:transparent}
+.hc.centre .hct{font-family:var(--display);font-size:1rem}
+.hc.centre .hcs{color:var(--accent-ink);opacity:.8}
+.hc.blank{background:transparent;border-style:dashed;color:var(--muted);box-shadow:none}
+.hc.blank .hct{font-weight:500}
+.hgrid.full .hc{border-radius:5px;padding:2px}
+.hgrid.full .hc .hct{font-size:.5rem;font-weight:500;-webkit-line-clamp:5;overflow-wrap:break-word;hyphens:auto}
+.hgrid.full .hc.centre .hct{font-size:.56rem}
+.hnote{display:flex;flex-direction:column;align-items:flex-start;gap:3px;background:none;border:0;border-top:1px solid var(--grid);padding:9px 0 4px;text-align:left;width:100%}
+.hnote:first-of-type{border-top:0}
+.hn{white-space:pre-wrap;overflow-wrap:anywhere;font-size:.9rem}
+.hnote.none .hn{color:var(--muted);font-style:italic;font-size:.84rem}
+.hstep{display:flex;align-items:center;gap:10px}
+.hstep .ghost{width:44px;height:44px;padding:0;font-size:1.2rem}
+.hstep b{font-family:var(--mono);font-size:1.2rem;min-width:22px;text-align:center}
 </style>
 </head>
 <body>
@@ -274,6 +317,7 @@ input.emoin{margin-top:6px;min-height:42px}
       <button role="tab" id="tabRecomp" aria-selected="false">Recomp</button>
       <button role="tab" id="tabJobs" aria-selected="false">Jobs</button>
       <button role="tab" id="tabIdeas" aria-selected="false">Ideas</button>
+      <button role="tab" id="tabHarada" aria-selected="false">Harada</button>
       <button role="tab" id="tabSync" aria-selected="false">Sync</button>
     </div>
   </header>
@@ -575,6 +619,66 @@ input.emoin{margin-top:6px;min-height:42px}
     </div>
   </div>
 
+  <!-- ============ HARADA ============ -->
+  <div id="pageHarada" class="page" hidden>
+    <div class="seg" role="tablist" aria-label="Harada view">
+      <button role="tab" id="hTabToday" aria-selected="true">Today</button>
+      <button role="tab" id="hTabGrid" aria-selected="false">Grid</button>
+      <button role="tab" id="hTabNotes" aria-selected="false">Notes</button>
+    </div>
+    <div id="hTodayView" class="page">
+      <section class="card">
+        <button class="hgoal" id="hGoal" type="button">Set your big goal</button>
+        <span class="im" id="hBy"></span>
+        <span class="im" id="hFocusLine"></span>
+        <div class="stats">
+          <div class="stat"><b id="hsDone">0</b><span>done today</span></div>
+          <div class="stat"><b id="hsDue">0</b><span>still to do</span></div>
+          <div class="stat" id="hsPctT"><b id="hsPct">–</b><span>of today's list</span></div>
+        </div>
+      </section>
+      <div id="hTodayList" class="page"></div>
+    </div>
+    <div id="hGridView" class="page" hidden>
+      <nav class="crumbs" id="hCrumbs" aria-label="Where you are"></nav>
+      <div class="hgrid three" id="hGrid"></div>
+      <p class="empty small" id="hGridHint" style="margin:0"></p>
+      <div class="foot"><button class="ghost" id="hFull" type="button">Full grid (9×9)</button></div>
+    </div>
+    <div id="hNotesView" class="page" hidden>
+      <p class="empty small" style="margin:0">How to do each one, the best way, and what's next. Tap any line to write.</p>
+      <div id="hNoteList" class="page"></div>
+    </div>
+    <section class="card" id="hForm" hidden>
+      <span class="lbl" id="hFormTitle">Action</span>
+      <span class="im" id="hFormPath" hidden></span>
+      <label class="field"><span class="lbl">What</span><input type="text" id="hText" maxlength="80"></label>
+      <div class="sub" id="hEvery">
+        <span class="lbl">Every</span>
+        <div class="chips" id="hPer"></div>
+        <div class="hstep" id="hTimesRow" hidden>
+          <button class="ghost" id="hMinus" type="button" aria-label="Fewer">−</button>
+          <b id="hTimes">1</b><span id="hTimesUnit">time per week</span>
+          <button class="ghost" id="hPlus" type="button" aria-label="More">+</button>
+        </div>
+      </div>
+      <div class="sub" id="hFocusRow" hidden>
+        <span class="lbl">Focus</span>
+        <div class="chips"><button class="tick" id="hFocus" type="button">Not on Today yet</button></div>
+        <p class="empty small" style="margin:0">Only focused sub-goals show on Today. Start with the basics, add more when they stick.</p>
+      </div>
+      <label class="field" id="hByRow"><span class="lbl">By</span><input type="date" id="hByInput"></label>
+      <label class="field"><span class="lbl">Notes</span><textarea id="hNotesIn"></textarea></label>
+      <p class="empty small" id="hHistory" style="margin:0"></p>
+      <button class="big" id="hSave" type="button">Save</button>
+      <div class="confirm">
+        <button class="link" id="hCancel" type="button">Back</button>
+        <button class="link" id="hClear" type="button" style="color:var(--bad)">Clear this cell</button>
+        <span hidden><button class="ghost danger" id="hClearYes" type="button">Yes, clear it</button></span>
+      </div>
+    </section>
+  </div>
+
   <!-- ============ SYNC ============ -->
   <div id="pageSync" class="page" hidden>
     <section class="card">
@@ -683,5 +787,6 @@ input.emoin{margin-top:6px;min-height:42px}
 <script src="recomp.js"></script>
 <script src="jobs.js"></script>
 <script src="ideas.js"></script>
+<script src="harada.js"></script>
 </body>
 </html>

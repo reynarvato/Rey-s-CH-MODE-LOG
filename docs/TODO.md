@@ -41,5 +41,8 @@ Done in v1.1.0 (11 Oct 2026).
 ## Ideas
 - [x] **Ideas tab** (v1.7.0, 4 Nov 2026): a canvas per idea or side mission (build, trip, story). Parts with emoji or photo, notes, link, Active/Inactive; tap into a part to plan its subassembly (path shown above). Connections between any two parts at any level, with editable coloured types plus label and notes. At each level, a connection to a part deeper inside is drawn dashed to its box, and one to a part elsewhere shows as a dashed port you can tap to jump to. Ideas list split Active / Inactive.
 
+## Harada
+- [x] **Harada tab** (v1.9.0, 8 Nov 2026): big goal (with a date) → up to 8 sub-goals → up to 8 actions each, every action "do X every day / N× per week / 2 weeks / month / once". **Today** lists the actions from focused sub-goals that are still due, with a tick for today and progress for the period (e.g. 2/4 this week); covered and other goals fold away. **Grid** shows the 3×3 overview, tap a sub-goal for its 8 actions, or the full 9×9; actions turn green when the period target is met. **Notes** collects the how-to / best way / what's next for every cell. Starts pre-filled with a basics-first grid (sleep, food, body in focus).
+
 ## Planned
 - [ ] Spend tab (receipt logging) — see `receipts-spec.md`
