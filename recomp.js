@@ -1,6 +1,6 @@
 /* Recomp tab — 12-week recomposition experiment (from Recomp_Session_Tracker.xlsx).
    One week on screen at a time: tick exercises and weekly actions, log the 7 days, see the summary.
-   Data: doc.recompWeeks["1".."12"] and doc.recompDays["YYYY-MM-DD"], each record merged by updatedAt. */
+   Data: doc.recompWeeks["1".."12"], doc.recompDays["YYYY-MM-DD"] and doc.recompCardio[id], each record merged by updatedAt. */
 const P = (sets, lo, hi, kg, inc, o = {}) => ({ sets, lo, hi, kg, inc, ...o });
 /* Rep ranges: M = mid-rep lifts 6–10, H = high-rep lifts 10–16. Starting kg = Rey's working weights from the Setgraph export (11–25 Oct). */
 const M = (sets, kg, inc, o) => P(sets, 6, 10, kg, inc, o), H = (sets, kg, inc, o) => P(sets, 10, 16, kg, inc, o);
@@ -33,7 +33,12 @@ const RECOMP = {
       "No overhead press, laterals or dips this week. Friday (S3): incline bench and the seated row machine.",
       "Warm-up: cable external rotation only, 12 per side, lightest setting."
     ] },
-    { from: 4, label: "Overhead back in · from week 4", sessions: [
+    /* Weeks 4–6: weights paused, cardio only (runs and walks, logged in the Cardio card). */
+    { from: 4, label: "Cardio block · weeks 4–6", cardio: true, sessions: [], rules: [
+      "No lifting these three weeks. Log every run and walk in Cardio below: km, minutes and kcal.",
+      "The week's totals and the block total (weeks 4–6) add up as you go."
+    ] },
+    { from: 7, label: "Weights back · from week 7", sessions: [
       { id: "S1", name: "S1 · Press", ex: ["Incline Bench Press", "Overhead Press", "Seated Cable Row", "Lat Pulldown", "Rear Delt Fly", "Tricep Ext"],
         rx: { "Incline Bench Press": M(4, 40, 2.5), "Overhead Press": M(3, 21.3, 1, { shoulder: true }), "Seated Cable Row": M(3, 45, 2.5), "Lat Pulldown": M(3, 55.3, 2.5), "Rear Delt Fly": H(3, 39, 6), "Tricep Ext": H(2, 10.2, 1) } },
       LOWER1,
@@ -54,11 +59,14 @@ const RECOMP = {
     { id: "photos", name: "Photos (4 angles)", photoWeeksOnly: true },
     { id: "review", name: "Weekly review + analyse.py" }
   ],
-  sessionChoices: ["", "S1 Press", "S2 Lower", "S3 Press2", "S4 Lower2", "BJJ", "Rest"]
+  sessionChoices: ["", "S1 Press", "S2 Lower", "S3 Press2", "S4 Lower2", "Cardio", "BJJ", "Rest"],
+  cardioKinds: ["Run", "Walk"]
 };
 function phaseFor(w) { return RECOMP.phases.filter(p => p.from <= w).pop(); }
 function sessionsFor(w) { return phaseFor(w).sessions; }
 function totalEx(w) { return sessionsFor(w).reduce((a, s) => a + s.ex.length, 0); }
+const isCardioWeek = w => !!phaseFor(w).cardio;
+const CARDIO_BLOCK = (() => { const i = RECOMP.phases.findIndex(p => p.cardio), nx = RECOMP.phases[i + 1]; return i < 0 ? null : [RECOMP.phases[i].from, nx ? nx.from - 1 : RECOMP.weeks]; })();
 /* ---- plan + progression ----
    Plans are per lift name ("Bench Press"), not per session, so a progression earned on any day carries into every
    later session and week that has that lift. doc.recompPlan[name].changes = [{ from: week, plan: { only the fields changed } }];
@@ -194,7 +202,9 @@ function weekStats(w) {
   });
   const weights = days.map(d => num(d.weight)).filter(v => v != null);
   const mean = weights.length >= 4 ? weights.reduce((a, b) => a + b, 0) / weights.length : null;
-  return { ticks, sessionsDone, training: ticks / totalEx(w), actions: aTotal ? aDone / aTotal : 0, mean, target: RECOMP.targets[w - 1], days, any: ticks > 0 || aDone > 0 || weights.length > 0 };
+  const cardio = cardioTotals(cardioInWeek(w)), cw = isCardioWeek(w);
+  if (cw) sessionsDone = cardio.n;
+  return { ticks, sessionsDone, cardio, cw, training: totalEx(w) ? ticks / totalEx(w) : null, actions: aTotal ? aDone / aTotal : 0, mean, target: RECOMP.targets[w - 1], days, any: ticks > 0 || aDone > 0 || weights.length > 0 || cardio.n > 0 };
 }
 function actionState(w, a, days) {
   const v = rWeek(w).actions[a.id];
@@ -262,6 +272,91 @@ function importSetgraph(text) {
   });
   persist(); rWeekShown = touched.size ? Math.max(...touched) : rWeekShown; renderRecomp();
   return "Imported " + nSets + " working sets from " + Object.keys(days).length + " days" + (touched.size ? " (week " + [...touched].sort((a, b) => a - b).join(", ") + ")" : "") + "." + (unmatched.size ? " Not in the plan, skipped: " + [...unmatched].join(", ") + "." : "");
+}
+
+/* ---- cardio ----
+   doc.recompCardio[id] = { date, kind: "Run"|"Walk", km, min, kcal, notes, updatedAt }; deletes stay as { deleted: true } tombstones. */
+function cardioAll() { return Object.entries(doc.recompCardio || {}).filter(([, c]) => c && !c.deleted && c.date).map(([id, c]) => ({ id, ...c })).sort((a, b) => a.date < b.date ? -1 : a.date > b.date ? 1 : (a.at || 0) - (b.at || 0)); }
+function cardioInWeek(w) { const d = weekDays(w).map(ymd); return cardioAll().filter(c => d.includes(c.date)); }
+function cardioTotals(list) {
+  const t = { n: list.length, km: 0, min: 0, kcal: 0, by: {} };
+  list.forEach(c => { t.km += num(c.km) || 0; t.min += num(c.min) || 0; t.kcal += num(c.kcal) || 0; const b = t.by[c.kind] = t.by[c.kind] || { n: 0, km: 0, min: 0, kcal: 0 }; b.n++; b.km += num(c.km) || 0; b.min += num(c.min) || 0; b.kcal += num(c.kcal) || 0; });
+  return t;
+}
+const fmtKm = v => (Math.round(v * 10) / 10) + " km";
+const fmtMin = m => { m = Math.round(m || 0); return m >= 60 ? Math.floor(m / 60) + "h " + String(m % 60).padStart(2, "0") + "m" : m + " min"; };
+const fmtPace = (km, min) => km > 0 && min > 0 ? (() => { const s = Math.round(min / km * 60); return Math.floor(s / 60) + ":" + String(s % 60).padStart(2, "0") + "/km"; })() : "";
+const fmtTot = t => t.n ? t.n + " session" + (t.n > 1 ? "s" : "") + " · " + fmtKm(t.km) + " · " + fmtMin(t.min) + " · " + Math.round(t.kcal) + " kcal" : "Nothing logged yet.";
+function saveCardio(id, rec) {
+  doc.recompCardio = doc.recompCardio || {};
+  const isNew = !id; id = id || "c" + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+  doc.recompCardio[id] = { ...(doc.recompCardio[id] || {}), ...rec, at: (doc.recompCardio[id] || {}).at || Date.now(), updatedAt: Date.now() };
+  const rd = rDay(rec.date); /* mark the day as trained, unless something's already there */
+  if (isNew && !rd.session) { doc.recompDays = doc.recompDays || {}; doc.recompDays[rec.date] = { ...rd, session: "Cardio", updatedAt: Date.now() }; }
+  persist(); renderRecomp();
+}
+function deleteCardio(id) { doc.recompCardio[id] = { deleted: true, updatedAt: Date.now() }; persist(); renderRecomp(); }
+let cEditing = null, cKind = null;
+function renderCardio(w) {
+  const C = $("rCardio"); C.innerHTML = "";
+  const el = (tag, cls, txt) => { const x = document.createElement(tag); if (cls) x.className = cls; if (txt != null) x.textContent = txt; return x; };
+  const btn = (txt, cls, fn) => { const b = el("button", "tick" + (cls ? " " + cls : ""), txt); b.type = "button"; b.onclick = fn; return b; };
+  const days = weekDays(w), keys = days.map(ymd), today = ymd(new Date());
+  const cur = cEditing ? (doc.recompCardio || {})[cEditing] || {} : {};
+  if (cEditing && !keys.includes(cur.date)) cEditing = null;
+  const kind = cKind || cur.kind || "Run";
+
+  /* entry form */
+  const f = el("div", "rpanel");
+  const k = el("div", "rp-row"); RECOMP.cardioKinds.forEach(n => k.appendChild(btn(n, n === kind ? "yes" : "", () => { cKind = n; renderRecomp(); })));
+  const day = el("select", "cell"); days.forEach((d, i) => { const o = el("option", null, d.toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" })); o.value = keys[i]; day.appendChild(o); });
+  day.value = cur.date || (keys.includes(today) ? today : keys[0]); k.appendChild(day); f.appendChild(k);
+  const g = el("div", "rp-edit"), inp = {};
+  [["km", "km", "decimal", 6], ["min", "minutes", "decimal", 7], ["kcal", "kcal", "numeric", 6]].forEach(([n, ph, m, wd]) => {
+    const lab = el("label", "rp-f"); lab.appendChild(el("span", null, ph)); const i = el("input", "cell"); i.type = "text"; i.inputMode = m; i.placeholder = ph; i.style.width = wd + "ch"; i.value = cur[n] ?? ""; inp[n] = i; lab.appendChild(i); g.appendChild(lab);
+  });
+  const nl = el("label", "rp-f"); nl.appendChild(el("span", null, "notes")); const ni = el("input", "cell"); ni.type = "text"; ni.placeholder = "route, how it felt"; ni.style.width = "18ch"; ni.value = cur.notes || ""; nl.appendChild(ni); g.appendChild(nl);
+  f.appendChild(g);
+  const msg = el("span", "empty small");
+  const a = el("div", "rp-row");
+  a.appendChild(btn(cEditing ? "Save changes" : "Add " + kind.toLowerCase(), "yes", () => {
+    const v = n => { const x = inp[n].value.trim().replace(",", "."); return x === "" || isNaN(+x) ? null : +x; };
+    if (v("km") == null && v("min") == null) { msg.textContent = "Add the distance or the time."; return; }
+    const id = cEditing; cEditing = null; cKind = null;
+    saveCardio(id, { date: day.value, kind, km: v("km"), min: v("min"), kcal: v("kcal"), notes: ni.value.trim() || null });
+  }));
+  if (cEditing) { a.appendChild(btn("Cancel", "sm", () => { cEditing = null; cKind = null; renderRecomp(); })); a.appendChild(btn("Delete", "sm no", () => { const id = cEditing; cEditing = null; cKind = null; deleteCardio(id); })); }
+  a.appendChild(msg); f.appendChild(a);
+  C.appendChild(f);
+
+  /* this week's sessions */
+  const list = cardioInWeek(w);
+  if (list.length) {
+    const t = el("table", "sheet"), hd = el("thead"), hr = el("tr"); ["Day", "", "km", "Time", "Pace", "kcal"].forEach(x => hr.appendChild(el("th", null, x))); hd.appendChild(hr); t.appendChild(hd);
+    const tb = el("tbody");
+    list.forEach(c => {
+      const [y, m, d] = c.date.split("-").map(Number), tr = el("tr");
+      if (c.id === cEditing) tr.className = "today";
+      tr.append(td(new Date(y, m - 1, d).toLocaleDateString("en-GB", { weekday: "short" }) + " " + d, "m"), td(c.kind, "m"),
+        td(c.km == null ? "–" : String(c.km), "m n"), td(c.min == null ? "–" : fmtMin(c.min), "m n"), td(fmtPace(num(c.km), num(c.min)) || "–", "m n"), td(c.kcal == null ? "–" : String(c.kcal), "m n"));
+      tr.title = c.notes || ""; tr.style.cursor = "pointer"; tr.onclick = () => { cEditing = c.id; cKind = c.kind; renderRecomp(); };
+      tb.appendChild(tr);
+    });
+    t.appendChild(tb); const wr = el("div", "sheetwrap"); wr.appendChild(t); C.appendChild(wr);
+    C.appendChild(el("p", "empty small", "Tap a row to edit or delete it."));
+  }
+
+  /* totals */
+  const wt = cardioTotals(list), tot = el("div", "rcardio-tot");
+  const line = (lbl, txt, strong) => { const r = el("div", "rp-row"); r.append(el("span", "rp-l", lbl), el(strong ? "b" : "span", null, txt)); tot.appendChild(r); };
+  line("Week " + w, fmtTot(wt), true);
+  Object.entries(wt.by).forEach(([n, b]) => line("· " + n, fmtTot(b) + (fmtPace(b.km, b.min) ? " · avg " + fmtPace(b.km, b.min) : "")));
+  if (CARDIO_BLOCK) {
+    const [a1, b1] = CARDIO_BLOCK, bl = []; for (let i = a1; i <= b1; i++) bl.push(...cardioInWeek(i));
+    line("Weeks " + a1 + "–" + b1, fmtTot(cardioTotals(bl)), true);
+  }
+  const all = cardioAll(); if (all.length && CARDIO_BLOCK && all.some(c => { const x = weekOf(c.date); return x < CARDIO_BLOCK[0] || x > CARDIO_BLOCK[1]; })) line("All time", fmtTot(cardioTotals(all)));
+  C.appendChild(tot);
 }
 
 /* ---- render ---- */
@@ -353,6 +448,8 @@ function renderRecomp() {
   const R = $("rRules"); R.innerHTML = ""; R.hidden = !ph.rules;
   (ph.rules || []).forEach(t => { const li = document.createElement("li"); li.textContent = t; R.appendChild(li); });
   const readyAll = [];
+  $("rLiftHead").hidden = !!ph.cardio; $("rImportRow").hidden = !!ph.cardio;
+  $("rCardioHead").textContent = ph.cardio ? "Cardio · this block's training" : "Cardio · runs and walks";
   ph.sessions.forEach(s => {
     const row = document.createElement("div"); row.className = "rsess";
     const h = document.createElement("div"); h.className = "rsess-h";
@@ -387,6 +484,8 @@ function renderRecomp() {
     ab.onclick = () => { Object.entries(best).forEach(([e, n]) => setPlan(e, w + 1, { kg: n }, true)); persist(); renderRecomp(); };
     bar.appendChild(ab); S.prepend(bar);
   }
+
+  renderCardio(w);
 
   /* weekly actions */
   const A = $("rActions"); A.innerHTML = "";
@@ -436,8 +535,13 @@ function paintDaily() {
 }
 function renderRecompSummary() {
   const w = rWeekShown; if (w == null) return; const st = weekStats(w);
-  $("rsSessions").textContent = st.sessionsDone + "/4"; paint($("rsSessionsT"), fair(st.sessionsDone / 4, w));
-  $("rsTraining").textContent = Math.round(st.training * 100) + "%"; paint($("rsTrainingT"), fair(st.training, w));
+  if (st.cw) { /* cardio weeks: count, km and time; no targets set, so no colours */
+    $("rsSessions").textContent = st.cardio.n; $("rsSessionsL").textContent = "cardio"; paint($("rsSessionsT"), null);
+    $("rsTraining").textContent = fmtKm(st.cardio.km).replace(" km", ""); $("rsTrainingL").textContent = "km · " + fmtMin(st.cardio.min); paint($("rsTrainingT"), null);
+  } else {
+    $("rsSessions").textContent = st.sessionsDone + "/4"; $("rsSessionsL").textContent = "sessions"; paint($("rsSessionsT"), fair(st.sessionsDone / 4, w));
+    $("rsTraining").textContent = Math.round(st.training * 100) + "%"; $("rsTrainingL").textContent = "training"; paint($("rsTrainingT"), fair(st.training, w));
+  }
   $("rsActions").textContent = Math.round(st.actions * 100) + "%"; paint($("rsActionsT"), elapsed(w) < 1 ? null : band(st.actions));
   $("rsWeight").textContent = st.mean == null ? "–" : st.mean.toFixed(1);
   $("rsTarget").textContent = "target " + st.target.toFixed(1) + " kg";
@@ -447,14 +551,15 @@ function renderRecompSummary() {
   for (let i = 1; i <= RECOMP.weeks; i++) {
     const s = weekStats(i), tr = document.createElement("tr");
     if (i === w) tr.className = "today";
-    tr.append(td("W" + i + (isMaint(i) ? " ·M" : ""), "m"), td(s.sessionsDone + "/4", "m c", fair(s.sessionsDone / 4, i)),
-      td(Math.round(s.training * 100) + "%", "m n", fair(s.training, i)), td(Math.round(s.actions * 100) + "%", "m n", elapsed(i) < 1 ? null : band(s.actions)),
+    tr.append(td("W" + i + (isMaint(i) ? " ·M" : "") + (s.cw ? " ·C" : ""), "m"),
+      s.cw ? td(s.cardio.n + "c", "m c") : td(s.sessionsDone + "/4", "m c", fair(s.sessionsDone / 4, i)),
+      s.cw ? td(fmtKm(s.cardio.km), "m n") : td(Math.round(s.training * 100) + "%", "m n", fair(s.training, i)), td(Math.round(s.actions * 100) + "%", "m n", elapsed(i) < 1 ? null : band(s.actions)),
       td(s.target.toFixed(1), "m n"), td(s.mean == null ? "–" : s.mean.toFixed(1), "m n", s.mean == null ? null : s.mean <= s.target + .2 ? 1 : s.mean <= s.target + .6 ? .5 : 0));
     tr.onclick = () => { rWeekShown = i; renderRecomp(); $("pageRecomp").scrollIntoView({ block: "start" }); };
     B.appendChild(tr);
-    if (i <= 10) { tTicks += s.ticks; tEx += totalEx(i); tSess += s.sessionsDone; RECOMP.actions.forEach(a => { if (a.photoWeeksOnly && !photoWeek(i)) return; tAT++; if (actionState(i, a, s.days) === "✓") tA++; }); }
+    if (i <= 10 && !s.cw) { tTicks += s.ticks; tEx += totalEx(i); tSess += s.sessionsDone; RECOMP.actions.forEach(a => { if (a.photoWeeksOnly && !photoWeek(i)) return; tAT++; if (actionState(i, a, s.days) === "✓") tA++; }); }
   }
-  $("rTotal").textContent = "Weeks 1–10: " + tSess + " sessions · training " + Math.round(tTicks / tEx * 100) + "% · actions " + Math.round(tA / tAT * 100) + "%. Design point 85%; below 70% two weeks running → fix the schedule, not the diet.";
+  $("rTotal").textContent = "Weights weeks 1–10: " + tSess + " sessions · training " + (tEx ? Math.round(tTicks / tEx * 100) : 0) + "% · actions " + Math.round(tA / tAT * 100) + "%" + (CARDIO_BLOCK ? " (actions over all weeks). ·C = cardio week: sessions and km." : ".") + " Design point 85%; below 70% two weeks running → fix the schedule, not the diet.";
   renderWeightChart();
 }
 function renderWeightChart() {
@@ -480,13 +585,19 @@ function recompDailyCSV() {
   const rows = [["Date", "Day", "Week", "Weight kg", "7-day mean", "kcal", "Protein g", "Steps", "Sleep h", "Trained", "Session", "BJJ", "Tier", "Notes"]];
   for (let w = 1; w <= RECOMP.weeks; w++) weekDays(w).forEach(d => {
     const k = ymd(d), r = rDay(k), m = rollingMean(k), s = r.session || "";
-    const trained = s ? (/^S\d|BJJ/.test(s) ? "Y" : "N") : (r.bjj === "Y" ? "Y" : "");
+    const trained = s ? (/^S\d|BJJ|Cardio/.test(s) ? "Y" : "N") : (r.bjj === "Y" ? "Y" : "");
     rows.push([k, d.toLocaleDateString("en-GB", { weekday: "short" }), w, r.weight ?? "", m == null ? "" : m.toFixed(2), r.kcal ?? "", r.protein ?? "", r.steps ?? "", r.sleep ?? "", trained, s, r.bjj || "", r.tier || "", r.notes || ""]);
   });
   const q = v => { v = String(v ?? ""); return /[",\r\n]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v; };
   return rows.map(r => r.map(q).join(",")).join("\r\n");
 }
-function recompHasData() { return Object.keys(doc.recompDays || {}).length || Object.keys(doc.recompWeeks || {}).length; }
+function recompCardioCSV() {
+  const rows = [["Date", "Week", "Kind", "km", "Minutes", "kcal", "Pace min/km", "Notes"]];
+  cardioAll().forEach(c => rows.push([c.date, weekOf(c.date), c.kind || "", c.km ?? "", c.min ?? "", c.kcal ?? "", c.km > 0 && c.min > 0 ? (c.min / c.km).toFixed(2) : "", c.notes || ""]));
+  const q = v => { v = String(v ?? ""); return /[",\r\n]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v; };
+  return rows.map(r => r.map(q).join(",")).join("\r\n");
+}
+function recompHasData() { return Object.keys(doc.recompDays || {}).length || Object.keys(doc.recompWeeks || {}).length || cardioAll().length; }
 
 $("rImport").addEventListener("change", async ev => {
   const f = ev.target.files && ev.target.files[0]; if (!f) return;

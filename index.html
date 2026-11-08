@@ -183,6 +183,7 @@ select.cell{padding-right:4px;cursor:pointer}
 .rp-verdict.partial { opacity: .75; }
 .rp-ok { font-weight: 600; }
 .tick.extra { border-style: dashed; }
+.rcardio-tot { display: flex; flex-direction: column; gap: 4px; }
 /* ideas */
 .tabs{flex-wrap:wrap}
 .tabs button{padding:8px 9px}
@@ -457,18 +458,22 @@ input.emoin{margin-top:6px;min-height:42px}
         <button class="ghost navbtn" id="rNext" type="button" aria-label="Next week">›</button>
       </div>
       <div class="stats rsum">
-        <div class="stat" id="rsSessionsT"><b id="rsSessions">0/4</b><span>sessions</span></div>
-        <div class="stat" id="rsTrainingT"><b id="rsTraining">0%</b><span>training</span></div>
+        <div class="stat" id="rsSessionsT"><b id="rsSessions">0/4</b><span id="rsSessionsL">sessions</span></div>
+        <div class="stat" id="rsTrainingT"><b id="rsTraining">0%</b><span id="rsTrainingL">training</span></div>
         <div class="stat" id="rsActionsT"><b id="rsActions">0%</b><span>actions</span></div>
         <div class="stat" id="rsWeightT"><b id="rsWeight">–</b><span id="rsTarget">target</span></div>
       </div>
     </section>
     <section class="card">
-      <div class="subhead"><span class="lbl">Workouts · tap a lift · goal hit → ▲ next week</span></div>
-      <div class="rp-row"><label class="ghost filebtn">Import Setgraph sets<input type="file" id="rImport" accept=".csv,text/csv,text/plain"></label><span class="empty small" id="rImportMsg">Setgraph → Export → Set export, then pick the file here.</span></div>
+      <div class="subhead"><span class="lbl" id="rLiftHead">Workouts · tap a lift · goal hit → ▲ next week</span></div>
+      <div class="rp-row" id="rImportRow"><label class="ghost filebtn">Import Setgraph sets<input type="file" id="rImport" accept=".csv,text/csv,text/plain"></label><span class="empty small" id="rImportMsg">Setgraph → Export → Set export, then pick the file here.</span></div>
       <div class="rphase" id="rPhase" hidden></div>
       <ul class="rrules" id="rRules" hidden></ul>
       <div id="rSessions" class="rsessions"></div>
+    </section>
+    <section class="card">
+      <span class="lbl" id="rCardioHead">Cardio</span>
+      <div id="rCardio" class="rsessions"></div>
     </section>
     <section class="card">
       <span class="lbl">Weekly actions</span>

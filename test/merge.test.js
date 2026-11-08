@@ -72,6 +72,12 @@ t("recomp plan merges per exercise and survives toRemote", () => {
   assert.strictEqual(m.recompPlan["S1|Bench Press"].changes[0].plan.kg, 45); assert.strictEqual(m.recompPlan["S4|Leg Press"].changes[0].plan.kg, 125);
   assert.ok(D.toRemote(m).recompPlan["S4|Leg Press"]);
 });
+t("recomp cardio merges per session, tombstones win when newer", () => {
+  const m = D.merge({ recompCardio: { a: { date: "2026-11-08", kind: "Run", km: 5, updatedAt: 9 }, b: { deleted: true, updatedAt: 8 } } },
+    { recompCardio: { a: { date: "2026-11-08", kind: "Run", km: 4, updatedAt: 2 }, b: { date: "2026-11-07", kind: "Walk", km: 3, updatedAt: 4 }, c: { date: "2026-11-09", kind: "Walk", km: 2, updatedAt: 1 } } });
+  assert.strictEqual(m.recompCardio.a.km, 5); assert.ok(m.recompCardio.b.deleted); assert.strictEqual(m.recompCardio.c.km, 2);
+  assert.ok(D.toRemote(m).recompCardio.c);
+});
 t("recomp days and weeks merge per record", () => {
   const m = D.merge({ recompDays: { "2026-10-12": { weight: 83.9, updatedAt: 9 } }, recompWeeks: { "1": { ticks: { "S1|Squat": "✓" }, updatedAt: 1 } } },
     { recompDays: { "2026-10-12": { weight: 84.5, updatedAt: 2 }, "2026-10-13": { weight: 83.7, updatedAt: 3 } }, recompWeeks: { "1": { ticks: {}, updatedAt: 5 } } });

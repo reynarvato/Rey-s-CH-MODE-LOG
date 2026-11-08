@@ -1,6 +1,6 @@
 /* Chmode Log — offline-first work-session logger.
    Data lives on the phone (IndexedDB) and syncs to a private GitHub repo when online. */
-const APP_VERSION = "1.7.0";
+const APP_VERSION = "1.8.0";
 const D = window.ChmodeData;
 const DEFAULT_TYPES = ["Writing", "Technical", "Meeting", "Admin"];
 const $ = id => document.getElementById(id);
@@ -468,6 +468,10 @@ async function sync() {
         if (typeof recompHasData === "function" && recompHasData()) {
           const dl = await gh("data/recomp/daily_log.csv", { allow404: true });
           await ghPut("data/recomp/daily_log.csv", b64utf8(recompDailyCSV()), dl && dl.sha, "Update recomp daily log");
+          if (cardioAll().length) {
+            const cl = await gh("data/recomp/cardio_log.csv", { allow404: true });
+            await ghPut("data/recomp/cardio_log.csv", b64utf8(recompCardioCSV()), cl && cl.sha, "Update recomp cardio log");
+          }
         }
         if (typeof jobsHaveData === "function" && jobsHaveData()) {
           const jc = await gh("data/jobs.csv", { allow404: true });
